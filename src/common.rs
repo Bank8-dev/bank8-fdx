@@ -17,10 +17,12 @@ use crate::errors::FdxErrorResponse;
 /// `set_config(..., true)` scopes the setting to the transaction/connection
 /// (architecture-principles §4.3d).
 pub(crate) async fn set_tenant_context(conn: &mut sqlx::PgConnection, env_id: Uuid) {
-    let _ = sqlx::query("SELECT sentin8_set_tenant_context($1, NULL, NULL, NULL, false, false, false, NULL, 'fdx')")
-        .bind(env_id)
-        .execute(conn)
-        .await;
+    let _ = sqlx::query(
+        "SELECT sentin8_set_tenant_context($1, NULL, NULL, NULL, false, false, false, NULL, 'fdx')",
+    )
+    .bind(env_id)
+    .execute(conn)
+    .await;
 }
 
 /// Map a sqlx error to the FDX internal-error response .

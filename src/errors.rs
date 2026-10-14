@@ -30,7 +30,12 @@ pub struct FdxErrorResponse {
 
 impl FdxErrorResponse {
     pub fn new(status: u16, code: impl Into<String>, message: impl Into<String>) -> Self {
-        Self { status_code: status, error_code: code.into(), message: message.into(), details: None }
+        Self {
+            status_code: status,
+            error_code: code.into(),
+            message: message.into(),
+            details: None,
+        }
     }
 
     pub fn with_details(mut self, details: serde_json::Value) -> Self {
@@ -48,7 +53,9 @@ impl FdxErrorResponse {
 /// Map an FDX error code to its (HTTP status, canonical code).
 pub fn error_code_mapping(code: &str) -> (u16, String) {
     let (status, c): (u16, String) = match code {
-        "INVALID_REQUEST" | "MALFORMED_JSON" | "MISSING_FIELD" | "INVALID_FIELD" => (400, code.to_string()),
+        "INVALID_REQUEST" | "MALFORMED_JSON" | "MISSING_FIELD" | "INVALID_FIELD" => {
+            (400, code.to_string())
+        }
         "UNAUTHORIZED" | "INVALID_TOKEN" => (401, code.to_string()),
         "FORBIDDEN" | "INSUFFICIENT_SCOPE" => (403, code.to_string()),
         "NOT_FOUND" => (404, code.to_string()),
@@ -65,7 +72,8 @@ pub fn error_code_mapping(code: &str) -> (u16, String) {
 
 impl IntoResponse for FdxErrorResponse {
     fn into_response(self) -> Response {
-        let status = StatusCode::from_u16(self.status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+        let status =
+            StatusCode::from_u16(self.status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
         (status, Json(self)).into_response()
     }
 }
@@ -78,15 +86,33 @@ impl From<FdxErrorResponse> for Response {
 
 /// Convenience constructors for common FDX error codes.
 impl FdxErrorResponse {
-    pub fn bad_request(msg: impl Into<String>) -> Self { Self::new(400, "INVALID_REQUEST", msg) }
-    pub fn unauthorized(msg: impl Into<String>) -> Self { Self::new(401, "UNAUTHORIZED", msg) }
-    pub fn forbidden(msg: impl Into<String>) -> Self { Self::new(403, "FORBIDDEN", msg) }
-    pub fn not_found(msg: impl Into<String>) -> Self { Self::new(404, "NOT_FOUND", msg) }
-    pub fn not_acceptable(msg: impl Into<String>) -> Self { Self::new(406, "NOT_ACCEPTABLE", msg) }
-    pub fn conflict(msg: impl Into<String>) -> Self { Self::new(409, "CONFLICT", msg) }
-    pub fn internal(msg: impl Into<String>) -> Self { Self::new(500, "INTERNAL_ERROR", msg) }
-    pub fn not_implemented(msg: impl Into<String>) -> Self { Self::new(501, "NOT_IMPLEMENTED", msg) }
-    pub fn service_unavailable(msg: impl Into<String>) -> Self { Self::new(503, "SERVICE_UNAVAILABLE", msg) }
+    pub fn bad_request(msg: impl Into<String>) -> Self {
+        Self::new(400, "INVALID_REQUEST", msg)
+    }
+    pub fn unauthorized(msg: impl Into<String>) -> Self {
+        Self::new(401, "UNAUTHORIZED", msg)
+    }
+    pub fn forbidden(msg: impl Into<String>) -> Self {
+        Self::new(403, "FORBIDDEN", msg)
+    }
+    pub fn not_found(msg: impl Into<String>) -> Self {
+        Self::new(404, "NOT_FOUND", msg)
+    }
+    pub fn not_acceptable(msg: impl Into<String>) -> Self {
+        Self::new(406, "NOT_ACCEPTABLE", msg)
+    }
+    pub fn conflict(msg: impl Into<String>) -> Self {
+        Self::new(409, "CONFLICT", msg)
+    }
+    pub fn internal(msg: impl Into<String>) -> Self {
+        Self::new(500, "INTERNAL_ERROR", msg)
+    }
+    pub fn not_implemented(msg: impl Into<String>) -> Self {
+        Self::new(501, "NOT_IMPLEMENTED", msg)
+    }
+    pub fn service_unavailable(msg: impl Into<String>) -> Self {
+        Self::new(503, "SERVICE_UNAVAILABLE", msg)
+    }
 }
 
 #[cfg(test)]
@@ -115,7 +141,8 @@ mod tests {
 
     #[test]
     fn test_with_details() {
-        let e = FdxErrorResponse::bad_request("invalid").with_details(serde_json::json!({"field": "amount"}));
+        let e = FdxErrorResponse::bad_request("invalid")
+            .with_details(serde_json::json!({"field": "amount"}));
         assert_eq!(e.details.as_ref().unwrap()["field"], "amount");
     }
 

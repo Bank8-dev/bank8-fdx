@@ -20,21 +20,24 @@
 static GLOBAL_ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 #[allow(dead_code)]
-mod auth;
-#[allow(dead_code)]
 mod admin_ui;
+#[allow(dead_code)]
+mod auth;
 mod common;
+#[allow(dead_code)]
+mod config;
 #[allow(dead_code)]
 mod consent_records;
 mod consent_rfw;
 #[allow(dead_code)]
-mod config;
-#[allow(dead_code)]
 mod csdf;
 #[allow(dead_code)]
 mod errors;
+mod event_consumer;
 #[allow(dead_code)]
 mod event_notifications;
+#[allow(dead_code)]
+mod flow;
 #[allow(dead_code)]
 mod handlers;
 #[allow(dead_code)]
@@ -51,21 +54,18 @@ mod operations;
 mod payment_networks;
 #[allow(dead_code)]
 mod pip;
+pub mod policy;
 #[allow(dead_code)]
 #[allow(dead_code)]
 mod recurring;
 mod registration;
-pub mod policy;
 #[allow(dead_code)]
 mod server;
 #[allow(dead_code)]
-mod flow;
-#[allow(dead_code)]
 mod statement_download;
-mod event_consumer;
-mod tenant_snapshot;
 #[allow(dead_code)]
 mod tax;
+mod tenant_snapshot;
 mod tokens;
 #[allow(dead_code)]
 mod validation;
@@ -79,7 +79,7 @@ async fn main() -> anyhow::Result<()> {
             .with_registration(registration::print)
             .with_state(server::build_state)
             .with_own_health()
-            .with_router(|router, state| server::routes(router, state))
+            .with_router(server::routes)
             .with_openapi(openapi::FdxOpenApi::openapi()),
     )
     .await

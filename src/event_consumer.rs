@@ -163,18 +163,17 @@ async fn sse_loop(
 /// `provider_profiles` rows) and relies on `sentin8:sys:service:updated`
 /// events for newly enabled envs. Idempotent per env.
 async fn backfill_enabled_envs(pool: &PgPool) {
-    let rows: Vec<(uuid::Uuid,)> = match sqlx::query_as(
-        r#"SELECT DISTINCT env_id FROM provider_profiles"#,
-    )
-    .fetch_all(pool)
-    .await
-    {
-        Ok(r) => r,
-        Err(e) => {
-            tracing::warn!(error = %e, "fdx: backfill query failed");
-            return;
-        }
-    };
+    let rows: Vec<(uuid::Uuid,)> =
+        match sqlx::query_as(r#"SELECT DISTINCT env_id FROM provider_profiles"#)
+            .fetch_all(pool)
+            .await
+        {
+            Ok(r) => r,
+            Err(e) => {
+                tracing::warn!(error = %e, "fdx: backfill query failed");
+                return;
+            }
+        };
 
     tracing::info!("fdx: backfill — {} known env(s) re-verified", rows.len());
 
@@ -299,27 +298,50 @@ async fn handle_grant_message(pool: &PgPool, msg: &sentin8::bus::contracts::Mess
     }
 
     let p = &msg.payload;
-    let env_id = match p.get("env_id").and_then(|v| v.as_str()).and_then(|s| uuid::Uuid::parse_str(s).ok()) {
+    let env_id = match p
+        .get("env_id")
+        .and_then(|v| v.as_str())
+        .and_then(|s| uuid::Uuid::parse_str(s).ok())
+    {
         Some(id) => id,
         None => {
             tracing::warn!("fdx: grant:created without env_id — skipping");
             return;
         }
     };
-    let user_id = match p.get("user_id").and_then(|v| v.as_str()).and_then(|s| uuid::Uuid::parse_str(s).ok()) {
+    let user_id = match p
+        .get("user_id")
+        .and_then(|v| v.as_str())
+        .and_then(|s| uuid::Uuid::parse_str(s).ok())
+    {
         Some(id) => id,
         None => {
             tracing::warn!("fdx: grant:created without user_id — skipping");
             return;
         }
     };
-    let client_id: String = p.get("client_id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
-    let grant_id: Option<String> = p.get("grant_id").and_then(|v| v.as_str()).map(|s| s.to_string());
-    let scope: String = p.get("scope").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+    let client_id: String = p
+        .get("client_id")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default()
+        .to_string();
+    let grant_id: Option<String> = p
+        .get("grant_id")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    let scope: String = p
+        .get("scope")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default()
+        .to_string();
     // The OAuth `state` carries the recipient's flow handle (the
     // "handle|app_origin" form packed at PAR time by the recipient-side
     // consent start). Only the handle segment is recorded.
-    let state: String = p.get("state").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+    let state: String = p
+        .get("state")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default()
+        .to_string();
     let handle: Option<uuid::Uuid> = state
         .split('|')
         .next()
@@ -426,9 +448,15 @@ async fn handle_grant_message(pool: &PgPool, msg: &sentin8::bus::contracts::Mess
             );
             // Grant-created event for the vertical's own family (DESIGN §4):
             // downstream notification subscribers hear about the new grant.
-            crate::handlers::emit_event(pool, env_id, "bank8:fdx:consent:created", serde_json::json!({
-                "consent_id": consent_id, "client_id": client_id, "scopes": scopes,
-            })).await;
+            crate::handlers::emit_event(
+                pool,
+                env_id,
+                "bank8:fdx:consent:created",
+                serde_json::json!({
+                    "consent_id": consent_id, "client_id": client_id, "scopes": scopes,
+                }),
+            )
+            .await;
             let _ = res;
         }
         Err(e) => {
@@ -449,14 +477,24 @@ async fn handle_envinit_message(pool: &PgPool, msg: &sentin8::bus::contracts::Me
     }
 
     let payload: &serde_json::Value = &msg.payload;
-    let service = payload.get("service").and_then(|v| v.as_str()).unwrap_or("");
-    let enabled = payload.get("enabled").and_then(|v| v.as_bool()).unwrap_or(false);
+    let service = payload
+        .get("service")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let enabled = payload
+        .get("enabled")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
 
     if service != "fdx" || !enabled {
         return;
     }
 
-    let env_id = match payload.get("env_id").and_then(|v| v.as_str()).and_then(|s| uuid::Uuid::parse_str(s).ok()) {
+    let env_id = match payload
+        .get("env_id")
+        .and_then(|v| v.as_str())
+        .and_then(|s| uuid::Uuid::parse_str(s).ok())
+    {
         Some(id) => id,
         None => return,
     };
@@ -513,7 +551,6 @@ async fn seed_env_policy_sets(pool: &PgPool, env_id: uuid::Uuid) -> anyhow::Resu
     }
     Ok(())
 }
-
 
 // ── Sys tenant-snapshot API client (VDC-4/VDC-9) ──────────────────────────
 
@@ -576,22 +613,27 @@ async fn fetch_tenant_snapshot(env_id: uuid::Uuid) -> Result<Option<TenantSnapsh
 
     match resp.status() {
         s if s.is_success() => {
-            let v: serde_json::Value =
-                resp.json().await.map_err(|e| format!("snapshot decode: {e}"))?;
+            let v: serde_json::Value = resp
+                .json()
+                .await
+                .map_err(|e| format!("snapshot decode: {e}"))?;
             let parse = |k: &str| {
-                v.get(k).and_then(|x| x.as_str()).unwrap_or_default().to_string()
+                v.get(k)
+                    .and_then(|x| x.as_str())
+                    .unwrap_or_default()
+                    .to_string()
             };
-            let opt = |k: &str| {
-                v.get(k).and_then(|x| x.as_str()).map(|s| s.to_string())
-            };
+            let opt = |k: &str| v.get(k).and_then(|x| x.as_str()).map(|s| s.to_string());
             Ok(Some(TenantSnapshot {
-                env_id: v.get("env_id")
+                env_id: v
+                    .get("env_id")
                     .and_then(|x| x.as_str())
                     .and_then(|s| uuid::Uuid::parse_str(s).ok())
                     .unwrap_or(env_id),
                 env_slug: parse("env_slug"),
                 _env_display_name: parse("env_display_name"),
-                _org_id: v.get("org_id")
+                _org_id: v
+                    .get("org_id")
                     .and_then(|x| x.as_str())
                     .and_then(|s| uuid::Uuid::parse_str(s).ok())
                     .unwrap_or_default(),

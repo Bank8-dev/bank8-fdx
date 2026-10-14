@@ -68,7 +68,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_subscription_success() {
-        let id = create_subscription(Uuid::new_v4(), vec!["account.closed".into()], "https://cb".into()).await.unwrap();
+        let id = create_subscription(
+            Uuid::new_v4(),
+            vec!["account.closed".into()],
+            "https://cb".into(),
+        )
+        .await
+        .unwrap();
         assert!(Uuid::parse_str(&id.to_string()).is_ok());
     }
 
@@ -86,7 +92,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_publish_notification_success() {
-        let r = publish_notification(Uuid::new_v4(), "account.closed".into(), serde_json::json!({})).await;
+        let r = publish_notification(
+            Uuid::new_v4(),
+            "account.closed".into(),
+            serde_json::json!({}),
+        )
+        .await;
         assert!(r.is_ok());
     }
 

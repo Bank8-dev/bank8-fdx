@@ -64,27 +64,44 @@ impl Fdx8Config {
     pub fn from_env() -> Self {
         let cfg = sentin8::config::Sentin8Config::from_env();
         Self {
-            port: env::var("BANK8_FDX_PORT").expect("BANK8_FDX_PORT must be set by captain").parse().expect("BANK8_FDX_PORT must be a valid u16"),
-            database_url: env::var("BANK8_FDX_DATABASE_URL").unwrap_or_else(|_| env::var("DATABASE_URL").unwrap_or_else(|_| sentin8::config::Sentin8Config::default_database_url().to_string())),
-            sentin8_auth_issuer: env::var("SENTIN8_AUTH_ISSUER").unwrap_or_else(|_| cfg.sentin8_auth_issuer()),
-            sentin8_auth_jwks_url: env::var("SENTIN8_AUTH_JWKS_URL").unwrap_or_else(|_| cfg.sentin8_auth_jwks_url()),
-            fdx_base_url: env::var("BANK8_FDX_BASE_URL").unwrap_or_else(|_| format!("https://{}", cfg.platform_domain("bank8:fdx"))),
-            ledger_url: env::var("BANK8_LEDGER_URL").unwrap_or_else(|_| format!("https://{}", cfg.platform_domain("bank8:ledger"))),
+            port: env::var("BANK8_FDX_PORT")
+                .expect("BANK8_FDX_PORT must be set by captain")
+                .parse()
+                .expect("BANK8_FDX_PORT must be a valid u16"),
+            database_url: env::var("BANK8_FDX_DATABASE_URL").unwrap_or_else(|_| {
+                env::var("DATABASE_URL").unwrap_or_else(|_| {
+                    sentin8::config::Sentin8Config::default_database_url().to_string()
+                })
+            }),
+            sentin8_auth_issuer: env::var("SENTIN8_AUTH_ISSUER")
+                .unwrap_or_else(|_| cfg.sentin8_auth_issuer()),
+            sentin8_auth_jwks_url: env::var("SENTIN8_AUTH_JWKS_URL")
+                .unwrap_or_else(|_| cfg.sentin8_auth_jwks_url()),
+            fdx_base_url: env::var("BANK8_FDX_BASE_URL")
+                .unwrap_or_else(|_| format!("https://{}", cfg.platform_domain("bank8:fdx"))),
+            ledger_url: env::var("BANK8_LEDGER_URL")
+                .unwrap_or_else(|_| format!("https://{}", cfg.platform_domain("bank8:ledger"))),
             ledger_http: None,
-            payments_url: env::var("BANK8_PAYMENTS_URL").unwrap_or_else(|_| format!("https://{}", cfg.platform_domain("bank8:payments"))),
+            payments_url: env::var("BANK8_PAYMENTS_URL")
+                .unwrap_or_else(|_| format!("https://{}", cfg.platform_domain("bank8:payments"))),
             payments_http: None,
             sentin8_bus_url: env::var("SENTIN8_BUS_URL").unwrap_or_else(|_| cfg.sentin8_bus_url()),
             stream_family: env::var("BANK8_FDX_STREAM_FAMILY").unwrap_or_else(|_| "fdx".into()),
-            sentin8_stat_url: env::var("SENTIN8_STAT_URL").unwrap_or_else(|_| cfg.sentin8_stat_url()),
+            sentin8_stat_url: env::var("SENTIN8_STAT_URL")
+                .unwrap_or_else(|_| cfg.sentin8_stat_url()),
             sentin8_stat_property_id: env::var("BANK8_FDX_STAT_PROPERTY_ID")
                 .ok()
                 .and_then(|s| uuid::Uuid::parse_str(&s).ok())
-                .unwrap_or_else(|| uuid::Uuid::parse_str("a0000000-0000-0000-0000-000000000005").unwrap()),
-            sentin8_flow_url: env::var("SENTIN8_FLOW_URL").unwrap_or_else(|_| cfg.sentin8_flow_url()),
+                .unwrap_or_else(|| {
+                    uuid::Uuid::parse_str("a0000000-0000-0000-0000-000000000005").unwrap()
+                }),
+            sentin8_flow_url: env::var("SENTIN8_FLOW_URL")
+                .unwrap_or_else(|_| cfg.sentin8_flow_url()),
             sentin8_flow_token: env::var("SENTIN8_FLOW_TOKEN").unwrap_or_else(|_| "fdx-dev".into()),
             m2m_http: None,
             sentin8_auth_client: AuthClient::new(ClientOptions {
-                base_url: env::var("SENTIN8_AUTH_ISSUER").unwrap_or_else(|_| cfg.sentin8_auth_issuer()),
+                base_url: env::var("SENTIN8_AUTH_ISSUER")
+                    .unwrap_or_else(|_| cfg.sentin8_auth_issuer()),
                 ..Default::default()
             }),
         }

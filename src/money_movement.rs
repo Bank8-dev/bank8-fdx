@@ -25,7 +25,12 @@ fn payments_http(state: &AppState) -> Result<reqwest::Client, Response> {
         .config
         .payments_http()
         .cloned()
-        .ok_or_else(|| FdxErrorResponse::internal("payments proxy transport absent (workload certificate not provisioned)".to_string()))
+        .ok_or_else(|| {
+            FdxErrorResponse::internal(
+                "payments proxy transport absent (workload certificate not provisioned)"
+                    .to_string(),
+            )
+        })
         .map_err(IntoResponse::into_response)
 }
 use crate::handlers::{emit_event, AppState};
@@ -38,7 +43,8 @@ pub async fn get_payment(
     headers: HeaderMap,
     Path(payment_id): Path<Uuid>,
 ) -> Result<Json<JsonValue>, Response> {
-    let _a = middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
+    let _a =
+        middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
     proxy_payments_get(&state, &format!("/v1/payments/{payment_id}")).await
 }
 
@@ -49,7 +55,8 @@ pub async fn get_transfer(
     headers: HeaderMap,
     Path(transfer_id): Path<Uuid>,
 ) -> Result<Json<JsonValue>, Response> {
-    let _a = middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Transfers)).await?;
+    let _a =
+        middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Transfers)).await?;
     proxy_payments_get(&state, &format!("/v1/transfers/{transfer_id}")).await
 }
 
@@ -61,10 +68,14 @@ pub async fn update_transfer(
     Path(transfer_id): Path<Uuid>,
     Json(req): Json<JsonValue>,
 ) -> Result<Json<JsonValue>, Response> {
-    let _a = middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Transfers)).await?;
+    let _a =
+        middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Transfers)).await?;
     let http = payments_http(&state)?;
     let resp = http
-        .patch(format!("{}/v1/transfers/{}", state.config.payments_url, transfer_id))
+        .patch(format!(
+            "{}/v1/transfers/{}",
+            state.config.payments_url, transfer_id
+        ))
         .json(&req)
         .send()
         .await
@@ -83,10 +94,14 @@ pub async fn cancel_transfer(
     headers: HeaderMap,
     Path(transfer_id): Path<Uuid>,
 ) -> Result<Json<JsonValue>, Response> {
-    let a = middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Transfers)).await?;
+    let a =
+        middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Transfers)).await?;
     let http = payments_http(&state)?;
     let resp = http
-        .delete(format!("{}/v1/transfers/{}", state.config.payments_url, transfer_id))
+        .delete(format!(
+            "{}/v1/transfers/{}",
+            state.config.payments_url, transfer_id
+        ))
         .send()
         .await
         .map_err(|e| FdxErrorResponse::internal(format!("payments fetch: {e}")))?;
@@ -94,20 +109,32 @@ pub async fn cancel_transfer(
         .json()
         .await
         .map_err(|e| FdxErrorResponse::internal(format!("payments decode: {e}")))?;
-    emit_event(&state.pool, a.env_id(), "bank8:fdx:transfer:cancelled", body.clone()).await;
+    emit_event(
+        &state.pool,
+        a.env_id(),
+        "bank8:fdx:transfer:cancelled",
+        body.clone(),
+    )
+    .await;
     Ok(Json(body))
 }
 
 /// Shared GET proxy into Bank8:Payments with the FDX 404 mapping .
-pub(crate) async fn proxy_payments_get(state: &AppState, path: &str) -> Result<Json<JsonValue>, Response> {
-    let http = payments_http(&state)?;
+pub(crate) async fn proxy_payments_get(
+    state: &AppState,
+    path: &str,
+) -> Result<Json<JsonValue>, Response> {
+    let http = payments_http(state)?;
     let resp = http
         .get(format!("{}{}", state.config.payments_url, path))
         .send()
         .await
         .map_err(|e| FdxErrorResponse::internal(format!("payments fetch: {e}")))?;
     if resp.status() == 404 {
-        return Err(FdxErrorResponse::new(404, "1107", "Data not found for request parameters").into_response());
+        return Err(
+            FdxErrorResponse::new(404, "1107", "Data not found for request parameters")
+                .into_response(),
+        );
     }
     let body: JsonValue = resp
         .json()
@@ -122,7 +149,8 @@ pub async fn list_payees(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<Json<JsonValue>, Response> {
-    let _a = middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
+    let _a =
+        middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
     proxy_payments_get(&state, "/v1/payees").await
 }
 
@@ -132,7 +160,8 @@ pub async fn create_payee(
     headers: HeaderMap,
     Json(req): Json<JsonValue>,
 ) -> Result<Json<JsonValue>, Response> {
-    let _a = middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
+    let _a =
+        middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
     let http = payments_http(&state)?;
     let resp = http
         .post(format!("{}/v1/payees", state.config.payments_url))
@@ -154,10 +183,14 @@ pub async fn update_payee(
     Path(payee_id): Path<Uuid>,
     Json(req): Json<JsonValue>,
 ) -> Result<Json<JsonValue>, Response> {
-    let _a = middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
+    let _a =
+        middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
     let http = payments_http(&state)?;
     let resp = http
-        .put(format!("{}/v1/payees/{}", state.config.payments_url, payee_id))
+        .put(format!(
+            "{}/v1/payees/{}",
+            state.config.payments_url, payee_id
+        ))
         .json(&req)
         .send()
         .await

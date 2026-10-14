@@ -30,7 +30,11 @@ fn ledger_http(state: &AppState) -> Result<reqwest::Client, Response> {
         .config
         .ledger_http()
         .cloned()
-        .ok_or_else(|| FdxErrorResponse::internal("ledger proxy transport absent (workload certificate not provisioned)".to_string()))
+        .ok_or_else(|| {
+            FdxErrorResponse::internal(
+                "ledger proxy transport absent (workload certificate not provisioned)".to_string(),
+            )
+        })
         .map_err(IntoResponse::into_response)
 }
 use crate::middleware;
@@ -43,10 +47,14 @@ pub async fn get_payment_network(
     headers: HeaderMap,
     Path((account_id, network_id)): Path<(Uuid, String)>,
 ) -> Result<Json<JsonValue>, Response> {
-    let _a = middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
+    let _a =
+        middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
     let http = ledger_http(&state)?;
     let resp = http
-        .get(format!("{}/v1/accounts/{}/payment-networks", state.config.ledger_url, account_id))
+        .get(format!(
+            "{}/v1/accounts/{}/payment-networks",
+            state.config.ledger_url, account_id
+        ))
         .send()
         .await
         .map_err(|e| FdxErrorResponse::internal(format!("ledger fetch: {e}")))?;
@@ -56,13 +64,20 @@ pub async fn get_payment_network(
         .map_err(|e| FdxErrorResponse::internal(format!("ledger decode: {e}")))?;
     // Filter the list to the requested paymentNetworkId (spec: returns the
     // network(s) for this bankId+identifier pair).
-    let networks = body.get("paymentNetworks").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+    let networks = body
+        .get("paymentNetworks")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
     let matched: Vec<&JsonValue> = networks
         .iter()
         .filter(|n| n.get("paymentNetworkId").and_then(|v| v.as_str()) == Some(network_id.as_str()))
         .collect();
     if matched.is_empty() && !networks.is_empty() {
-        return Err(FdxErrorResponse::new(404, "1107", "Data not found for request parameters").into_response());
+        return Err(
+            FdxErrorResponse::new(404, "1107", "Data not found for request parameters")
+                .into_response(),
+        );
     }
     Ok(Json(serde_json::json!({ "paymentNetworks": matched })))
 }
@@ -77,18 +92,28 @@ pub struct RevocationRequest {
     /// DATA_ACCESS_PLATFORM | DATA_PROVIDER | DATA_RECIPIENT | INDIVIDUAL |
     /// MERCHANT | TOKEN_ISSUER | VENDOR
     pub initiator: String,
-    #[serde(default)] pub other_reason: Option<String>,
+    #[serde(default)]
+    pub other_reason: Option<String>,
 }
 
 /// Validate the FDX revocation enums (reason + initiator).
 pub fn validate_revocation(req: &RevocationRequest) -> Result<(), Response> {
     const REASONS: &[&str] = &["BUSINESS_RULE", "OTHER", "SECURITY_EVENT", "USER_ACTION"];
     const INITIATORS: &[&str] = &[
-        "DATA_ACCESS_PLATFORM", "DATA_PROVIDER", "DATA_RECIPIENT",
-        "INDIVIDUAL", "MERCHANT", "TOKEN_ISSUER", "VENDOR",
+        "DATA_ACCESS_PLATFORM",
+        "DATA_PROVIDER",
+        "DATA_RECIPIENT",
+        "INDIVIDUAL",
+        "MERCHANT",
+        "TOKEN_ISSUER",
+        "VENDOR",
     ];
     if !REASONS.contains(&req.reason.as_str()) {
-        return Err(FdxErrorResponse::bad_request(format!("invalid reason '{}' (allowed: BUSINESS_RULE, OTHER, SECURITY_EVENT, USER_ACTION)", req.reason)).into_response());
+        return Err(FdxErrorResponse::bad_request(format!(
+            "invalid reason '{}' (allowed: BUSINESS_RULE, OTHER, SECURITY_EVENT, USER_ACTION)",
+            req.reason
+        ))
+        .into_response());
     }
     if !INITIATORS.contains(&req.initiator.as_str()) {
         return Err(FdxErrorResponse::bad_request(format!("invalid initiator '{}' (allowed: DATA_ACCESS_PLATFORM, DATA_PROVIDER, DATA_RECIPIENT, INDIVIDUAL, MERCHANT, TOKEN_ISSUER, VENDOR)", req.initiator)).into_response());
@@ -124,7 +149,13 @@ pub async fn revoke_payment_network(
     .await
     .map_err(db_err)?;
     conn.commit().await.map_err(db_err)?;
-    emit_event(&state.pool, a.env_id(), "bank8:fdx:paymentnetwork:revoked", serde_json::json!({ "payment_network_id": network_id })).await;
+    emit_event(
+        &state.pool,
+        a.env_id(),
+        "bank8:fdx:paymentnetwork:revoked",
+        serde_json::json!({ "payment_network_id": network_id }),
+    )
+    .await;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -135,7 +166,8 @@ pub async fn get_payment_network_revocations(
     headers: HeaderMap,
     Path((account_id, network_id)): Path<(Uuid, String)>,
 ) -> Result<Json<JsonValue>, Response> {
-    let _a = middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
+    let _a =
+        middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
     // Same-transaction discipline (fdx DESIGN.md §5) — see start_consent.
     let mut conn = state.pool.begin().await.map_err(db_err)?;
     set_tenant_context(&mut conn, _a.env_id()).await;
@@ -145,7 +177,8 @@ pub async fn get_payment_network_revocations(
             WHERE account_id = $1 AND payment_network_id = $2
             ORDER BY revoked_at DESC"#,
     )
-    .bind(account_id).bind(&network_id)
+    .bind(account_id)
+    .bind(&network_id)
     .fetch_all(&mut *conn)
     .await
     .map_err(db_err)?;
@@ -161,7 +194,9 @@ pub async fn get_payment_network_revocations(
             })
         })
         .collect();
-    Ok(Json(serde_json::json!({ "paymentNetworkLifecycleEvents": events })))
+    Ok(Json(
+        serde_json::json!({ "paymentNetworkLifecycleEvents": events }),
+    ))
 }
 
 #[cfg(test)]
@@ -170,17 +205,44 @@ mod tests {
 
     #[test]
     fn revocation_reasons_validated() {
-        let ok = RevocationRequest { reason: "USER_ACTION".into(), initiator: "INDIVIDUAL".into(), other_reason: None };
+        let ok = RevocationRequest {
+            reason: "USER_ACTION".into(),
+            initiator: "INDIVIDUAL".into(),
+            other_reason: None,
+        };
         assert!(validate_revocation(&ok).is_ok());
-        let bad_reason = RevocationRequest { reason: "MAGIC".into(), initiator: "INDIVIDUAL".into(), other_reason: None };
+        let bad_reason = RevocationRequest {
+            reason: "MAGIC".into(),
+            initiator: "INDIVIDUAL".into(),
+            other_reason: None,
+        };
         assert!(validate_revocation(&bad_reason).is_err());
-        let bad_initiator = RevocationRequest { reason: "USER_ACTION".into(), initiator: "AI".into(), other_reason: None };
+        let bad_initiator = RevocationRequest {
+            reason: "USER_ACTION".into(),
+            initiator: "AI".into(),
+            other_reason: None,
+        };
         assert!(validate_revocation(&bad_initiator).is_err());
         // All spec enums accepted.
         for reason in ["BUSINESS_RULE", "OTHER", "SECURITY_EVENT", "USER_ACTION"] {
-            for initiator in ["DATA_ACCESS_PLATFORM", "DATA_PROVIDER", "DATA_RECIPIENT", "INDIVIDUAL", "MERCHANT", "TOKEN_ISSUER", "VENDOR"] {
-                let r = RevocationRequest { reason: reason.into(), initiator: initiator.into(), other_reason: None };
-                assert!(validate_revocation(&r).is_ok(), "{reason}/{initiator} rejected");
+            for initiator in [
+                "DATA_ACCESS_PLATFORM",
+                "DATA_PROVIDER",
+                "DATA_RECIPIENT",
+                "INDIVIDUAL",
+                "MERCHANT",
+                "TOKEN_ISSUER",
+                "VENDOR",
+            ] {
+                let r = RevocationRequest {
+                    reason: reason.into(),
+                    initiator: initiator.into(),
+                    other_reason: None,
+                };
+                assert!(
+                    validate_revocation(&r).is_ok(),
+                    "{reason}/{initiator} rejected"
+                );
             }
         }
     }

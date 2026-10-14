@@ -18,14 +18,26 @@ pub struct FdxError {
 }
 
 impl FdxError {
-    pub fn new(status_code: u16, error_code: impl Into<String>, message: impl Into<String>) -> Self {
-        Self { status_code, error_code: error_code.into(), message: message.into() }
+    pub fn new(
+        status_code: u16,
+        error_code: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
+        Self {
+            status_code,
+            error_code: error_code.into(),
+            message: message.into(),
+        }
     }
 }
 
 impl std::fmt::Display for FdxError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{}] {}: {}", self.status_code, self.error_code, self.message)
+        write!(
+            f,
+            "[{}] {}: {}",
+            self.status_code, self.error_code, self.message
+        )
     }
 }
 
@@ -54,13 +66,31 @@ impl FdxValidationError {
     /// Map a validation error to an FDX error response.
     pub fn to_fdx_error(&self) -> FdxError {
         match self {
-            Self::InvalidContentType => FdxError::new(415, "UNSUPPORTED_MEDIA_TYPE", "Content-Type must be application/json"),
-            Self::InvalidAccept => FdxError::new(406, "NOT_ACCEPTABLE", "Accept header must include application/json"),
-            Self::MethodNotAllowed => FdxError::new(405, "METHOD_NOT_ALLOWED", "HTTP method not allowed for this route"),
-            Self::MissingRequiredField(f) => FdxError::new(400, "MISSING_FIELD", format!("required field missing: {f}")),
+            Self::InvalidContentType => FdxError::new(
+                415,
+                "UNSUPPORTED_MEDIA_TYPE",
+                "Content-Type must be application/json",
+            ),
+            Self::InvalidAccept => FdxError::new(
+                406,
+                "NOT_ACCEPTABLE",
+                "Accept header must include application/json",
+            ),
+            Self::MethodNotAllowed => FdxError::new(
+                405,
+                "METHOD_NOT_ALLOWED",
+                "HTTP method not allowed for this route",
+            ),
+            Self::MissingRequiredField(f) => {
+                FdxError::new(400, "MISSING_FIELD", format!("required field missing: {f}"))
+            }
             Self::UnknownRoute => FdxError::new(404, "NOT_FOUND", "unknown FDX v6.5 route"),
-            Self::MalformedBody => FdxError::new(400, "MALFORMED_JSON", "request body is not valid JSON"),
-            Self::InvalidFieldValue(f) => FdxError::new(400, "INVALID_FIELD", format!("invalid field value: {f}")),
+            Self::MalformedBody => {
+                FdxError::new(400, "MALFORMED_JSON", "request body is not valid JSON")
+            }
+            Self::InvalidFieldValue(f) => {
+                FdxError::new(400, "INVALID_FIELD", format!("invalid field value: {f}"))
+            }
         }
     }
 }
@@ -75,20 +105,40 @@ pub fn validate_fdx_request(method: &str, path: &str, body: &str) -> Result<(), 
     let routes: &[(&str, &str, bool, &[&str])] = &[
         ("GET", "/fdx/v6/accounts", false, &[]),
         ("GET", "/fdx/v6/accounts/{accountId}", false, &[]),
-        ("GET", "/fdx/v6/accounts/{accountId}/transactions", false, &[]),
+        (
+            "GET",
+            "/fdx/v6/accounts/{accountId}/transactions",
+            false,
+            &[],
+        ),
         ("GET", "/fdx/v6/accounts/{accountId}/statements", false, &[]),
-        ("GET", "/fdx/v6/accounts/{accountId}/payment-networks", false, &[]),
+        (
+            "GET",
+            "/fdx/v6/accounts/{accountId}/payment-networks",
+            false,
+            &[],
+        ),
         ("GET", "/fdx/v6/customers", false, &[]),
         ("GET", "/fdx/v6/customers/current", false, &[]),
         ("GET", "/fdx/v6/consents/{consentId}", false, &[]),
         ("PUT", "/fdx/v6/consents/{consentId}/revocation", false, &[]),
-        ("POST", "/fdx/v6/transfers", true, &["fromAccountId", "toAccountId", "amount"]),
+        (
+            "POST",
+            "/fdx/v6/transfers",
+            true,
+            &["fromAccountId", "toAccountId", "amount"],
+        ),
         ("POST", "/fdx/v6/payments", true, &["accountId", "amount"]),
         ("GET", "/fdx/v6/capability", false, &[]),
         ("GET", "/fdx/v6/availability", false, &[]),
         ("GET", "/fdx/v6/certification-metrics", false, &[]),
         // Statement download.
-        ("GET", "/fdx/v6/accounts/{accountId}/statements/{statementId}", false, &[]),
+        (
+            "GET",
+            "/fdx/v6/accounts/{accountId}/statements/{statementId}",
+            false,
+            &[],
+        ),
         // : money-movement reads + update/cancel + payees.
         ("GET", "/fdx/v6/payments/{paymentId}", false, &[]),
         ("GET", "/fdx/v6/transfers/{transferId}", false, &[]),
@@ -98,37 +148,109 @@ pub fn validate_fdx_request(method: &str, path: &str, body: &str) -> Result<(), 
         ("POST", "/fdx/v6/payees", true, &[]),
         ("PUT", "/fdx/v6/payees/{payeeId}", true, &[]),
         // : PIP + recurring.
-        ("POST", "/fdx/v6/payment-initiation-parties", true, &["partyName"]),
-        ("GET", "/fdx/v6/payment-initiation-parties/{partyId}", false, &[]),
-        ("POST", "/fdx/v6/payment-initiation-parties/{partyId}/payment-methods", true, &["methodType"]),
-        ("DELETE", "/fdx/v6/payment-initiation-parties/{partyId}/payment-methods/{regId}", false, &[]),
-        ("POST", "/fdx/v6/recurring-payments", true, &["fromAccountId", "amount", "frequency"]),
+        (
+            "POST",
+            "/fdx/v6/payment-initiation-parties",
+            true,
+            &["partyName"],
+        ),
+        (
+            "GET",
+            "/fdx/v6/payment-initiation-parties/{partyId}",
+            false,
+            &[],
+        ),
+        (
+            "POST",
+            "/fdx/v6/payment-initiation-parties/{partyId}/payment-methods",
+            true,
+            &["methodType"],
+        ),
+        (
+            "DELETE",
+            "/fdx/v6/payment-initiation-parties/{partyId}/payment-methods/{regId}",
+            false,
+            &[],
+        ),
+        (
+            "POST",
+            "/fdx/v6/recurring-payments",
+            true,
+            &["fromAccountId", "amount", "frequency"],
+        ),
         ("GET", "/fdx/v6/recurring-payments", false, &[]),
-        ("GET", "/fdx/v6/recurring-payments/{recurringPaymentId}", false, &[]),
-        ("GET", "/fdx/v6/recurring-payments/{recurringPaymentId}/payments", false, &[]),
+        (
+            "GET",
+            "/fdx/v6/recurring-payments/{recurringPaymentId}",
+            false,
+            &[],
+        ),
+        (
+            "GET",
+            "/fdx/v6/recurring-payments/{recurringPaymentId}/payments",
+            false,
+            &[],
+        ),
         // : recipient registration (DCR proxy).
         ("POST", "/fdx/v6/register", true, &[]),
         ("GET", "/fdx/v6/register/{clientId}", false, &[]),
         ("PUT", "/fdx/v6/register/{clientId}", true, &[]),
         // : payment network detail + revocation.
-        ("GET", "/fdx/v6/accounts/{accountId}/payment-networks/{paymentNetworkId}", false, &[]),
-        ("PUT", "/fdx/v6/accounts/{accountId}/payment-networks/{paymentNetworkId}/revocation", true, &["reason", "initiator"]),
-        ("GET", "/fdx/v6/accounts/{accountId}/payment-networks/{paymentNetworkId}/revocation", false, &[]),
+        (
+            "GET",
+            "/fdx/v6/accounts/{accountId}/payment-networks/{paymentNetworkId}",
+            false,
+            &[],
+        ),
+        (
+            "PUT",
+            "/fdx/v6/accounts/{accountId}/payment-networks/{paymentNetworkId}/revocation",
+            true,
+            &["reason", "initiator"],
+        ),
+        (
+            "GET",
+            "/fdx/v6/accounts/{accountId}/payment-networks/{paymentNetworkId}/revocation",
+            false,
+            &[],
+        ),
         // /: notification subscriptions + feed.
-        ("POST", "/fdx/v6/notification-subscriptions", true, &["eventType", "category", "callbackUrl"]),
+        (
+            "POST",
+            "/fdx/v6/notification-subscriptions",
+            true,
+            &["eventType", "category", "callbackUrl"],
+        ),
         ("GET", "/fdx/v6/notification-subscriptions", false, &[]),
-        ("GET", "/fdx/v6/notification-subscriptions/{subscriptionId}", false, &[]),
-        ("DELETE", "/fdx/v6/notification-subscriptions/{subscriptionId}", false, &[]),
+        (
+            "GET",
+            "/fdx/v6/notification-subscriptions/{subscriptionId}",
+            false,
+            &[],
+        ),
+        (
+            "DELETE",
+            "/fdx/v6/notification-subscriptions/{subscriptionId}",
+            false,
+            &[],
+        ),
         ("POST", "/fdx/v6/notifications", true, &["notificationType"]),
         ("GET", "/fdx/v6/notifications", false, &[]),
         // : revocation record GET.
         ("GET", "/fdx/v6/consents/{consentId}/revocation", false, &[]),
         // : consent lifecycle.
-        ("PUT", "/fdx/v6/consents/{consentId}/lifecycle", true, &["durationType"]),
+        (
+            "PUT",
+            "/fdx/v6/consents/{consentId}/lifecycle",
+            true,
+            &["durationType"],
+        ),
         // : operation support statement.
         ("GET", "/fdx/v6/operation-support", false, &[]),
     ];
-    let matched = routes.iter().find(|(_, pat, _, _)| route_matches(pat, path));
+    let matched = routes
+        .iter()
+        .find(|(_, pat, _, _)| route_matches(pat, path));
     let route = match matched {
         Some(r) => r,
         None => return Err(FdxValidationError::UnknownRoute.to_fdx_error()),
@@ -141,12 +263,17 @@ pub fn validate_fdx_request(method: &str, path: &str, body: &str) -> Result<(), 
         let parsed: serde_json::Value = if body.is_empty() {
             return Err(FdxValidationError::MissingRequiredField("(body)".into()).to_fdx_error());
         } else {
-            serde_json::from_str(body).map_err(|_| FdxValidationError::MalformedBody.to_fdx_error())?
+            serde_json::from_str(body)
+                .map_err(|_| FdxValidationError::MalformedBody.to_fdx_error())?
         };
-        let obj = parsed.as_object().ok_or_else(|| FdxValidationError::MalformedBody.to_fdx_error())?;
+        let obj = parsed
+            .as_object()
+            .ok_or_else(|| FdxValidationError::MalformedBody.to_fdx_error())?;
         for field in route.3 {
             if !obj.contains_key(*field) {
-                return Err(FdxValidationError::MissingRequiredField((*field).into()).to_fdx_error());
+                return Err(
+                    FdxValidationError::MissingRequiredField((*field).into()).to_fdx_error()
+                );
             }
         }
     }
@@ -200,7 +327,12 @@ mod tests {
 
     #[test]
     fn test_known_route_get_account_detail() {
-        assert!(validate_fdx_request("GET", "/fdx/v6/accounts/550e8400-e29b-41d4-a716-446655440000", "").is_ok());
+        assert!(validate_fdx_request(
+            "GET",
+            "/fdx/v6/accounts/550e8400-e29b-41d4-a716-446655440000",
+            ""
+        )
+        .is_ok());
     }
 
     #[test]
@@ -263,9 +395,18 @@ mod tests {
 
     #[test]
     fn test_route_matches_placeholder() {
-        assert!(route_matches("/fdx/v6/accounts/{accountId}", "/fdx/v6/accounts/abc-123"));
-        assert!(!route_matches("/fdx/v6/accounts/{accountId}", "/fdx/v6/accounts"));
-        assert!(!route_matches("/fdx/v6/accounts", "/fdx/v6/accounts/abc/extra"));
+        assert!(route_matches(
+            "/fdx/v6/accounts/{accountId}",
+            "/fdx/v6/accounts/abc-123"
+        ));
+        assert!(!route_matches(
+            "/fdx/v6/accounts/{accountId}",
+            "/fdx/v6/accounts"
+        ));
+        assert!(!route_matches(
+            "/fdx/v6/accounts",
+            "/fdx/v6/accounts/abc/extra"
+        ));
     }
 
     #[test]

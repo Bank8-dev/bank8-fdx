@@ -43,12 +43,18 @@ impl DataCluster {
 /// Returns an empty vec for unknown scopes.
 pub fn scope_to_clusters(scope: &str) -> Vec<DataCluster> {
     match scope {
-        "bank8:fdx:accountbasic:read" | "bank8:fdx:accountdetailed:read" => vec![DataCluster::Accounts],
+        "bank8:fdx:accountbasic:read" | "bank8:fdx:accountdetailed:read" => {
+            vec![DataCluster::Accounts]
+        }
         "bank8:fdx:balances:read" => vec![DataCluster::Accounts],
         "bank8:fdx:transactions:read" => vec![DataCluster::Transactions],
         "bank8:fdx:statements:read" => vec![DataCluster::Statements],
-        "bank8:fdx:customercontact:read" | "bank8:fdx:customerpersonal:read" => vec![DataCluster::Customers],
-        "bank8:fdx:transfers:read" | "bank8:fdx:transfers:write" => vec![DataCluster::Transfers, DataCluster::Payments],
+        "bank8:fdx:customercontact:read" | "bank8:fdx:customerpersonal:read" => {
+            vec![DataCluster::Customers]
+        }
+        "bank8:fdx:transfers:read" | "bank8:fdx:transfers:write" => {
+            vec![DataCluster::Transfers, DataCluster::Payments]
+        }
         "bank8:fdx:payments:write" => vec![DataCluster::Payments],
         "bank8:fdx:tax:read" => vec![DataCluster::Tax],
         _ => vec![],
@@ -71,7 +77,11 @@ pub struct CsdfFilter {
 
 impl CsdfFilter {
     pub fn new(scopes: Vec<String>) -> Self {
-        Self { consent_scopes: scopes, product_id: None, fields: None }
+        Self {
+            consent_scopes: scopes,
+            product_id: None,
+            fields: None,
+        }
     }
 
     /// Compute the set of data clusters allowed by the consent scopes.
@@ -138,7 +148,10 @@ pub fn minimize_csdf(data: &serde_json::Value, filter: &CsdfFilter) -> serde_jso
 }
 
 /// Whitelist specific fields from a JSON object (or each object in an array).
-pub fn apply_field_filter(data: &serde_json::Value, allowed_fields: &[String]) -> serde_json::Value {
+pub fn apply_field_filter(
+    data: &serde_json::Value,
+    allowed_fields: &[String],
+) -> serde_json::Value {
     match data {
         serde_json::Value::Object(map) => {
             let mut out = serde_json::Map::new();
@@ -149,9 +162,11 @@ pub fn apply_field_filter(data: &serde_json::Value, allowed_fields: &[String]) -
             }
             serde_json::Value::Object(out)
         }
-        serde_json::Value::Array(arr) => {
-            serde_json::Value::Array(arr.iter().map(|v| apply_field_filter(v, allowed_fields)).collect())
-        }
+        serde_json::Value::Array(arr) => serde_json::Value::Array(
+            arr.iter()
+                .map(|v| apply_field_filter(v, allowed_fields))
+                .collect(),
+        ),
         other => other.clone(),
     }
 }
@@ -180,8 +195,14 @@ mod tests {
 
     #[test]
     fn test_scope_to_clusters_known() {
-        assert_eq!(scope_to_clusters("bank8:fdx:transactions:read"), vec![DataCluster::Transactions]);
-        assert_eq!(scope_to_clusters("bank8:fdx:statements:read"), vec![DataCluster::Statements]);
+        assert_eq!(
+            scope_to_clusters("bank8:fdx:transactions:read"),
+            vec![DataCluster::Transactions]
+        );
+        assert_eq!(
+            scope_to_clusters("bank8:fdx:statements:read"),
+            vec![DataCluster::Statements]
+        );
     }
 
     #[test]
@@ -198,7 +219,10 @@ mod tests {
 
     #[test]
     fn test_csdf_filter_allowed_clusters() {
-        let f = CsdfFilter::new(vec!["bank8:fdx:accountbasic:read".into(), "bank8:fdx:transactions:read".into()]);
+        let f = CsdfFilter::new(vec![
+            "bank8:fdx:accountbasic:read".into(),
+            "bank8:fdx:transactions:read".into(),
+        ]);
         let c = f.allowed_clusters();
         assert!(c.contains(&DataCluster::Accounts));
         assert!(c.contains(&DataCluster::Transactions));
@@ -261,13 +285,22 @@ mod tests {
 
     #[test]
     fn test_check_consent_scope_allowed() {
-        assert!(check_consent_scope("bank8:fdx:transactions:read", "transactions"));
-        assert!(check_consent_scope("bank8:fdx:accountbasic:read", "accounts"));
+        assert!(check_consent_scope(
+            "bank8:fdx:transactions:read",
+            "transactions"
+        ));
+        assert!(check_consent_scope(
+            "bank8:fdx:accountbasic:read",
+            "accounts"
+        ));
     }
 
     #[test]
     fn test_check_consent_scope_denied() {
-        assert!(!check_consent_scope("bank8:fdx:accountbasic:read", "transactions"));
+        assert!(!check_consent_scope(
+            "bank8:fdx:accountbasic:read",
+            "transactions"
+        ));
         assert!(!check_consent_scope("bank8:fdx:unknown:read", "accounts"));
     }
 

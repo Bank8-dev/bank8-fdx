@@ -7,24 +7,21 @@
 //! Output via `--print-registration` flag. See `sentin8/design/sentin8-service-self-registration-design.md`.
 
 use sentin8::registration::{
-    AdminScope, AdminUi, AdminUiPage, AuditFinding, ErrorCode, M2mGrant, PgRole, Registration, ServiceActionEntry,
-    SqlMigration,
-    PolicySetDecl, RelationDecl,
+    AdminScope, AdminUi, AdminUiPage, AuditFinding, ErrorCode, M2mGrant, PgRole, PolicySetDecl,
+    Registration, RelationDecl, ServiceActionEntry, SqlMigration,
 };
 use utoipa::OpenApi;
 
-const PG_ROLES: &[PgRole] = &[
-    PgRole {
-        scope: "bank8:fdx:read,bank8:fdx:write",
-        role: "bank8_fdx_service",
-        bypass_rls: false,
-        // Grants live in the bank8 vertical database only (DBX §6.6
-        // database-per-vertical, schema-per-service).
-        database: "bank8",
-        // FDX owns all its reads — no cross-schema grants.
-        cross_schema_grants: &[],
-    },
-];
+const PG_ROLES: &[PgRole] = &[PgRole {
+    scope: "bank8:fdx:read,bank8:fdx:write",
+    role: "bank8_fdx_service",
+    bypass_rls: false,
+    // Grants live in the bank8 vertical database only (DBX §6.6
+    // database-per-vertical, schema-per-service).
+    database: "bank8",
+    // FDX owns all its reads — no cross-schema grants.
+    cross_schema_grants: &[],
+}];
 
 /// M2M DCR scope grants (self-registration design §3.11). One entry per
 /// workload this service registers via DCR; `vertical enroll` upserts
@@ -42,7 +39,12 @@ const PG_ROLES: &[PgRole] = &[
 const M2M_GRANTS: &[M2mGrant] = &[
     M2mGrant {
         workload: "bank8:fdx",
-        scopes: &["sentin8:bus:produce", "sentin8:bus:consume", "sentin8:stat:measure", "sentin8:flow:write"],
+        scopes: &[
+            "sentin8:bus:produce",
+            "sentin8:bus:consume",
+            "sentin8:stat:measure",
+            "sentin8:flow:write",
+        ],
     },
     // The runtime DCR call sites pass the bare short name (`fdx` —
     // fdx/src/server.rs bus client + Flow registration, telemetry.rs's
@@ -50,7 +52,12 @@ const M2M_GRANTS: &[M2mGrant] = &[
     // gate looks up the exact client_name.
     M2mGrant {
         workload: "fdx",
-        scopes: &["sentin8:bus:produce", "sentin8:bus:consume", "sentin8:stat:measure", "sentin8:flow:write"],
+        scopes: &[
+            "sentin8:bus:produce",
+            "sentin8:bus:consume",
+            "sentin8:stat:measure",
+            "sentin8:flow:write",
+        ],
     },
     // Shell audit-journal pusher workload (audit crate §6.8; boot step 8c).
     M2mGrant {
@@ -78,10 +85,7 @@ const M2M_GRANTS: &[M2mGrant] = &[
     // side's scope-mirror policy set admits these scopes).
     M2mGrant {
         workload: "bank8-fdx-ledger",
-        scopes: &[
-            "bank8:ledger:accounts:read",
-            "bank8:ledger:postings:read",
-        ],
+        scopes: &["bank8:ledger:accounts:read", "bank8:ledger:postings:read"],
     },
     // CERTFREE-8V: the fdx→payments proxy workload — transfers and
     // payment creation through the payments public API.
@@ -98,37 +102,130 @@ const M2M_GRANTS: &[M2mGrant] = &[
     M2mGrant {
         workload: "bank8-fdx-tls",
         scopes: &["sentin8:sys:instances:read"],
-    },];
+    },
+];
 
 const ADMIN_SCOPES: &[AdminScope] = &[
-    AdminScope::Typed { role: "bank8:fdx:admin", scope: "bank8:fdx:consents:write" },
-    AdminScope::Typed { role: "bank8:fdx:admin", scope: "bank8:fdx:consents:read" },
-    AdminScope::Typed { role: "bank8:fdx:admin", scope: "bank8:fdx:recipient:read" },
-    AdminScope::Typed { role: "bank8:fdx:admin", scope: "bank8:fdx:recipient:write" },
-    AdminScope::Typed { role: "bank8:fdx:admin", scope: "bank8:fdx:provider:write" },
-    AdminScope::Typed { role: "bank8:fdx:admin", scope: "bank8:fdx:provider:read" },
+    AdminScope::Typed {
+        role: "bank8:fdx:admin",
+        scope: "bank8:fdx:consents:write",
+    },
+    AdminScope::Typed {
+        role: "bank8:fdx:admin",
+        scope: "bank8:fdx:consents:read",
+    },
+    AdminScope::Typed {
+        role: "bank8:fdx:admin",
+        scope: "bank8:fdx:recipient:read",
+    },
+    AdminScope::Typed {
+        role: "bank8:fdx:admin",
+        scope: "bank8:fdx:recipient:write",
+    },
+    AdminScope::Typed {
+        role: "bank8:fdx:admin",
+        scope: "bank8:fdx:provider:write",
+    },
+    AdminScope::Typed {
+        role: "bank8:fdx:admin",
+        scope: "bank8:fdx:provider:read",
+    },
     // Policy-admin surface (policy design §3.6; principles §6.0b per-service scope).
-    AdminScope::Typed { role: "bank8:fdx:admin", scope: "bank8:fdx:policy:read" },
-    AdminScope::Typed { role: "bank8:fdx:admin", scope: "bank8:fdx:policy:write" },
+    AdminScope::Typed {
+        role: "bank8:fdx:admin",
+        scope: "bank8:fdx:policy:read",
+    },
+    AdminScope::Typed {
+        role: "bank8:fdx:admin",
+        scope: "bank8:fdx:policy:write",
+    },
 ];
 
 const ERROR_CODES: &[ErrorCode] = &[
-    ErrorCode { enum_name: "Fdx8ConsentInvalid", error_code: "fdx_consent_invalid", status_code: 403 },
-    ErrorCode { enum_name: "Fdx8ConsentRevoked", error_code: "fdx_consent_revoked", status_code: 403 },
+    ErrorCode {
+        enum_name: "Fdx8ConsentInvalid",
+        error_code: "fdx_consent_invalid",
+        status_code: 403,
+    },
+    ErrorCode {
+        enum_name: "Fdx8ConsentRevoked",
+        error_code: "fdx_consent_revoked",
+        status_code: 403,
+    },
 ];
 
 const ADMIN_UI_PAGES: &[AdminUiPage] = &[
-    AdminUiPage { route: "overview", label: "Overview", ui_endpoint: "/v1/admin/ui/overview", data_endpoint: "/v1/admin/overview", icon: "0xe1b1" },
-    AdminUiPage { route: "provider", label: "Provider", ui_endpoint: "/v1/admin/ui/provider", data_endpoint: "/v1/admin/provider", icon: "0xf06be" },
-    AdminUiPage { route: "recipients", label: "Recipients", ui_endpoint: "/v1/admin/ui/recipients", data_endpoint: "/v1/admin/recipients", icon: "0xe2c8" },
-    AdminUiPage { route: "consents", label: "Consents", ui_endpoint: "/v1/admin/ui/consents", data_endpoint: "/v1/admin/consents", icon: "0xe69a" },
-    AdminUiPage { route: "csdf", label: "CSDF", ui_endpoint: "/v1/admin/ui/csdf", data_endpoint: "/v1/admin/csdf", icon: "0xf04e6" },
-    AdminUiPage { route: "settings", label: "Settings", ui_endpoint: "/v1/admin/ui/settings", data_endpoint: "/v1/admin/settings", icon: "0xe57f" },
+    AdminUiPage {
+        route: "overview",
+        label: "Overview",
+        ui_endpoint: "/v1/admin/ui/overview",
+        data_endpoint: "/v1/admin/overview",
+        icon: "0xe1b1",
+    },
+    AdminUiPage {
+        route: "provider",
+        label: "Provider",
+        ui_endpoint: "/v1/admin/ui/provider",
+        data_endpoint: "/v1/admin/provider",
+        icon: "0xf06be",
+    },
+    AdminUiPage {
+        route: "recipients",
+        label: "Recipients",
+        ui_endpoint: "/v1/admin/ui/recipients",
+        data_endpoint: "/v1/admin/recipients",
+        icon: "0xe2c8",
+    },
+    AdminUiPage {
+        route: "consents",
+        label: "Consents",
+        ui_endpoint: "/v1/admin/ui/consents",
+        data_endpoint: "/v1/admin/consents",
+        icon: "0xe69a",
+    },
+    AdminUiPage {
+        route: "csdf",
+        label: "CSDF",
+        ui_endpoint: "/v1/admin/ui/csdf",
+        data_endpoint: "/v1/admin/csdf",
+        icon: "0xf04e6",
+    },
+    AdminUiPage {
+        route: "settings",
+        label: "Settings",
+        ui_endpoint: "/v1/admin/ui/settings",
+        data_endpoint: "/v1/admin/settings",
+        icon: "0xe57f",
+    },
     // Sentin8:Policy admin surface (§3.6, post pattern).
-    AdminUiPage { route: "policy-sets", label: "Policy Sets", ui_endpoint: "/v1/admin/ui/policy-sets", data_endpoint: "/v1/admin/policy-sets", icon: "0xe8b8" },
-    AdminUiPage { route: "policy-decisions", label: "Policy Decisions", ui_endpoint: "/v1/admin/ui/policy-decisions", data_endpoint: "/v1/admin/policy-decisions", icon: "0xf070" },
-    AdminUiPage { route: "relations", label: "Relations", ui_endpoint: "/v1/admin/ui/relations", data_endpoint: "/v1/admin/relations", icon: "0xe572" },
-    AdminUiPage { route: "attributes", label: "Attributes", ui_endpoint: "/v1/admin/ui/attributes", data_endpoint: "/v1/admin/attributes", icon: "0xe8d3" },
+    AdminUiPage {
+        route: "policy-sets",
+        label: "Policy Sets",
+        ui_endpoint: "/v1/admin/ui/policy-sets",
+        data_endpoint: "/v1/admin/policy-sets",
+        icon: "0xe8b8",
+    },
+    AdminUiPage {
+        route: "policy-decisions",
+        label: "Policy Decisions",
+        ui_endpoint: "/v1/admin/ui/policy-decisions",
+        data_endpoint: "/v1/admin/policy-decisions",
+        icon: "0xf070",
+    },
+    AdminUiPage {
+        route: "relations",
+        label: "Relations",
+        ui_endpoint: "/v1/admin/ui/relations",
+        data_endpoint: "/v1/admin/relations",
+        icon: "0xe572",
+    },
+    AdminUiPage {
+        route: "attributes",
+        label: "Attributes",
+        ui_endpoint: "/v1/admin/ui/attributes",
+        data_endpoint: "/v1/admin/attributes",
+        icon: "0xe8d3",
+    },
 ];
 
 /// Default declarative policy set (Sentin8:Policy design §3.2/§3.4,
@@ -181,16 +278,14 @@ const AUDIT_FINDINGS: &[AuditFinding] = &[
     },
 ];
 
-const SERVICE_ACTIONS: &[ServiceActionEntry] = &[
-    ServiceActionEntry {
-        action: "fdx_consent_start",
-        service_type: "bank8:fdx",
-        platform_domain_key: "bank8:fdx",
-        method: "POST",
-        endpoint: "/v1/recipient/consents/start",
-        scope: "bank8:fdx:recipient:write",
-    },
-];
+const SERVICE_ACTIONS: &[ServiceActionEntry] = &[ServiceActionEntry {
+    action: "fdx_consent_start",
+    service_type: "bank8:fdx",
+    platform_domain_key: "bank8:fdx",
+    method: "POST",
+    endpoint: "/v1/recipient/consents/start",
+    scope: "bank8:fdx:recipient:write",
+}];
 
 /// Consent data provider consumed by Sentin8:Auth's accounts proxy
 /// (`WHERE feature='fdx' AND data_type='accounts'`, design §4.3b).
@@ -250,8 +345,16 @@ pub fn print(section: Option<String>) -> anyhow::Result<()> {
             pages: ADMIN_UI_PAGES,
         }),
         sql_migrations: vec![
-            SqlMigration { version: 1, name: "init", sql: SQL_1_INIT },
-            SqlMigration { version: 2, name: "provider_catalog_no_rls", sql: SQL_2_PROVIDER_CATALOG_NO_RLS },
+            SqlMigration {
+                version: 1,
+                name: "init",
+                sql: SQL_1_INIT,
+            },
+            SqlMigration {
+                version: 2,
+                name: "provider_catalog_no_rls",
+                sql: SQL_2_PROVIDER_CATALOG_NO_RLS,
+            },
         ],
         audit_findings: Some(AUDIT_FINDINGS),
         service_actions: Some(SERVICE_ACTIONS),

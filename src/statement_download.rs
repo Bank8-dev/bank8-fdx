@@ -25,7 +25,11 @@ fn ledger_http(state: &AppState) -> Result<reqwest::Client, Response> {
         .config
         .ledger_http()
         .cloned()
-        .ok_or_else(|| FdxErrorResponse::internal("ledger proxy transport absent (workload certificate not provisioned)".to_string()))
+        .ok_or_else(|| {
+            FdxErrorResponse::internal(
+                "ledger proxy transport absent (workload certificate not provisioned)".to_string(),
+            )
+        })
         .map_err(IntoResponse::into_response)
 }
 use crate::middleware;
@@ -41,14 +45,19 @@ pub async fn download_statement(
     headers: HeaderMap,
     Path((account_id, statement_id)): Path<(Uuid, String)>,
 ) -> Result<Response, Response> {
-    let _a = middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Statements)).await?;
+    let _a =
+        middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Statements)).await?;
     // Ask Storage for a signed read URL for the statement object.
     let http = ledger_http(&state)?;
     let bucket = "statements";
     let object = format!("{}/{}/{}.pdf", _a.env_id(), account_id, statement_id);
     let link_req = serde_json::json!({ "object": object });
     let resp = http
-        .post(format!("{}/v1/admin/buckets/{}/link", sentin8_storage_base(), bucket))
+        .post(format!(
+            "{}/v1/admin/buckets/{}/link",
+            sentin8_storage_base(),
+            bucket
+        ))
         .json(&link_req)
         .send()
         .await
@@ -57,9 +66,16 @@ pub async fn download_statement(
         // Statement not found in storage → FDX 404 (data not found 1107).
         let status = resp.status().as_u16();
         if status == 404 {
-            return Err(FdxErrorResponse::new(404, "1107", "Data not found for request parameters").into_response());
+            return Err(FdxErrorResponse::new(
+                404,
+                "1107",
+                "Data not found for request parameters",
+            )
+            .into_response());
         }
-        return Err(FdxErrorResponse::internal(format!("storage link status {status}")).into_response());
+        return Err(
+            FdxErrorResponse::internal(format!("storage link status {status}")).into_response(),
+        );
     }
     let body: JsonValue = resp
         .json()
@@ -75,11 +91,7 @@ pub async fn download_statement(
         url.to_string()
     };
     // 302 Found — URL returned via the Location header (spec §getAccountStatement).
-    Ok((
-        StatusCode::FOUND,
-        [("Location", absolute)],
-    )
-        .into_response())
+    Ok((StatusCode::FOUND, [("Location", absolute)]).into_response())
 }
 
 fn sentin8_storage_base() -> String {

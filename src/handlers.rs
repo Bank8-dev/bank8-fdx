@@ -15,8 +15,8 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
-use uuid::Uuid;
 use utoipa::ToSchema;
+use uuid::Uuid;
 
 use crate::auth;
 use crate::config::Fdx8Config;
@@ -28,21 +28,21 @@ use crate::middleware::{self, consent_filter_from_headers, minimize_response};
 /// `bank8-fdx-ledger` certificate-presenting client, or a loud error —
 /// the proxy NEVER degrades to an unauthenticated call.
 fn ledger_http(state: &AppState) -> Result<reqwest::Client, FdxErrorResponse> {
-    state
-        .config
-        .ledger_http()
-        .cloned()
-        .ok_or_else(|| FdxErrorResponse::internal("ledger proxy transport absent (workload certificate not provisioned)".to_string()))
+    state.config.ledger_http().cloned().ok_or_else(|| {
+        FdxErrorResponse::internal(
+            "ledger proxy transport absent (workload certificate not provisioned)".to_string(),
+        )
+    })
 }
 
 /// The fdx→payments proxy transport (CERTFREE-8V): the boot-built
 /// `bank8-fdx-payments` certificate-presenting client, or a loud error.
 fn payments_http(state: &AppState) -> Result<reqwest::Client, FdxErrorResponse> {
-    state
-        .config
-        .payments_http()
-        .cloned()
-        .ok_or_else(|| FdxErrorResponse::internal("payments proxy transport absent (workload certificate not provisioned)".to_string()))
+    state.config.payments_http().cloned().ok_or_else(|| {
+        FdxErrorResponse::internal(
+            "payments proxy transport absent (workload certificate not provisioned)".to_string(),
+        )
+    })
 }
 use crate::tokens;
 
@@ -73,13 +73,16 @@ pub struct AppState {
 /// share one cache, like the `Arc`-wrapped engine).
 #[derive(Default)]
 pub struct CertMetricsCache {
-    entries: std::sync::Mutex<std::collections::HashMap<Uuid, (serde_json::Value, std::time::Instant)>>,
+    entries:
+        std::sync::Mutex<std::collections::HashMap<Uuid, (serde_json::Value, std::time::Instant)>>,
 }
 
 impl Clone for CertMetricsCache {
     fn clone(&self) -> Self {
         Self {
-            entries: std::sync::Mutex::new(self.entries.lock().map(|e| e.clone()).unwrap_or_default()),
+            entries: std::sync::Mutex::new(
+                self.entries.lock().map(|e| e.clone()).unwrap_or_default(),
+            ),
         }
     }
 }
@@ -117,7 +120,12 @@ impl CertMetricsCache {
 }
 
 async fn set_tenant_context(conn: &mut sqlx::PgConnection, env_id: Uuid) {
-    let _ = sqlx::query("SELECT sentin8_set_tenant_context($1, NULL, NULL, NULL, false, false, false, NULL, 'fdx')").bind(env_id).execute(conn).await;
+    let _ = sqlx::query(
+        "SELECT sentin8_set_tenant_context($1, NULL, NULL, NULL, false, false, false, NULL, 'fdx')",
+    )
+    .bind(env_id)
+    .execute(conn)
+    .await;
 }
 
 // ── Consent Service ──────────────────────────────────────────────────────
@@ -153,11 +161,19 @@ pub async fn create_consent(
     Json(req): Json<CreateConsentRequest>,
 ) -> Result<Json<ConsentResponse>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
-crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget::new("bank8:fdx:consents:write")).await?;
+    crate::policy::require(
+        &state.policy,
+        &a,
+        &headers,
+        sentin8::shield::EvalTarget::new("bank8:fdx:consents:write"),
+    )
+    .await?;
     // Same-transaction discipline (fdx DESIGN.md §5) — see start_consent.
     let mut conn = state.pool.begin().await.map_err(err_db)?;
     set_tenant_context(&mut conn, a.env_id()).await;
-    let expires_at = req.duration_days.map(|d| chrono::Utc::now() + chrono::Duration::days(d as i64));
+    let expires_at = req
+        .duration_days
+        .map(|d| chrono::Utc::now() + chrono::Duration::days(d as i64));
     let row = sqlx::query(
         r#"INSERT INTO consents (env_id, customer_id, recipient_id, provider_id, scopes, data_clusters, duration_days, expires_at)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -168,7 +184,13 @@ crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget:
     .fetch_one(&mut *conn).await.map_err(err_db)?;
     let consent = row_to_consent(&row);
     conn.commit().await.map_err(err_db)?;
-    emit_event(&state.pool, a.env_id(), "bank8:fdx:consent:created", serde_json::to_value(&consent).unwrap_or_default()).await;
+    emit_event(
+        &state.pool,
+        a.env_id(),
+        "bank8:fdx:consent:created",
+        serde_json::to_value(&consent).unwrap_or_default(),
+    )
+    .await;
     Ok(Json(consent))
 }
 
@@ -179,7 +201,13 @@ pub async fn list_consents(
     Query(q): Query<ListConsentsQuery>,
 ) -> Result<Json<Vec<ConsentResponse>>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
-crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget::new("bank8:fdx:consents:read")).await?;
+    crate::policy::require(
+        &state.policy,
+        &a,
+        &headers,
+        sentin8::shield::EvalTarget::new("bank8:fdx:consents:read"),
+    )
+    .await?;
     // Provider plane (two-ledger model, DESIGN.md §1): the grant ledger is
     // THIS tenant's own table — the bank's consent dashboard (eBank app)
     // lists the grants the AS seeded. Same-transaction discipline (§5):
@@ -197,10 +225,7 @@ crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget:
     .await
     .map_err(err_db)?;
     let _ = conn.commit().await;
-    let out: Vec<ConsentResponse> = rows
-        .iter()
-        .map(|r| row_to_consent(r))
-        .collect();
+    let out: Vec<ConsentResponse> = rows.iter().map(row_to_consent).collect();
     Ok(Json(out))
 }
 
@@ -217,7 +242,13 @@ pub async fn get_consent(
     Path(id): Path<Uuid>,
 ) -> Result<Json<ConsentResponse>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
-crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget::new("bank8:fdx:consents:read")).await?;
+    crate::policy::require(
+        &state.policy,
+        &a,
+        &headers,
+        sentin8::shield::EvalTarget::new("bank8:fdx:consents:read"),
+    )
+    .await?;
     // Same-transaction discipline (fdx DESIGN.md §5) — see list_consents.
     let mut conn = state.pool.begin().await.map_err(err_db)?;
     set_tenant_context(&mut conn, a.env_id()).await;
@@ -235,7 +266,13 @@ pub async fn revoke_consent(
     Path(id): Path<Uuid>,
 ) -> Result<Json<ConsentResponse>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
-crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget::new("bank8:fdx:consents:write")).await?;
+    crate::policy::require(
+        &state.policy,
+        &a,
+        &headers,
+        sentin8::shield::EvalTarget::new("bank8:fdx:consents:write"),
+    )
+    .await?;
     // Same-transaction discipline (fdx DESIGN.md §5) — see start_consent.
     let mut conn = state.pool.begin().await.map_err(err_db)?;
     set_tenant_context(&mut conn, a.env_id()).await;
@@ -245,7 +282,13 @@ crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget:
     ).bind(id).fetch_one(&mut *conn).await.map_err(err_db)?;
     let consent = row_to_consent(&row);
     conn.commit().await.map_err(err_db)?;
-    emit_event(&state.pool, a.env_id(), "bank8:fdx:consent:revoked", serde_json::to_value(&consent).unwrap_or_default()).await;
+    emit_event(
+        &state.pool,
+        a.env_id(),
+        "bank8:fdx:consent:revoked",
+        serde_json::to_value(&consent).unwrap_or_default(),
+    )
+    .await;
     Ok(Json(consent))
 }
 
@@ -261,17 +304,24 @@ pub async fn get_accounts(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, Response> {
-    let _a = middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Accounts)).await?;
+    let _a =
+        middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Accounts)).await?;
     let http = ledger_http(&state)?;
     let bearer = headers
         .get(axum::http::header::AUTHORIZATION)
         .and_then(|v| v.to_str().ok())
         .unwrap_or("")
         .to_string();
-    let resp = http.get(format!("{}/v1/accounts", state.config.ledger_url))
+    let resp = http
+        .get(format!("{}/v1/accounts", state.config.ledger_url))
         .header("authorization", &bearer)
-        .send().await.map_err(|e| FdxErrorResponse::internal(format!("ledger fetch: {e}")))?;
-    let body: serde_json::Value = resp.json().await.map_err(|e| FdxErrorResponse::internal(format!("ledger decode: {e}")))?;
+        .send()
+        .await
+        .map_err(|e| FdxErrorResponse::internal(format!("ledger fetch: {e}")))?;
+    let body: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| FdxErrorResponse::internal(format!("ledger decode: {e}")))?;
     let filter = consent_filter_from_headers(&state, &headers).await;
     // Wrap in FDX response format, then apply CSDF minimization (§7).
     let wrapped = serde_json::json!({ "accounts": body });
@@ -284,11 +334,21 @@ pub async fn get_account_detail(
     headers: HeaderMap,
     Path(account_id): Path<Uuid>,
 ) -> Result<Json<serde_json::Value>, Response> {
-    let _a = middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Accounts)).await?;
+    let _a =
+        middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Accounts)).await?;
     let http = ledger_http(&state)?;
-    let resp = http.get(format!("{}/v1/accounts/{}", state.config.ledger_url, account_id))
-        .send().await.map_err(|e| FdxErrorResponse::internal(format!("ledger fetch: {e}")))?;
-    let body: serde_json::Value = resp.json().await.map_err(|e| FdxErrorResponse::internal(format!("ledger decode: {e}")))?;
+    let resp = http
+        .get(format!(
+            "{}/v1/accounts/{}",
+            state.config.ledger_url, account_id
+        ))
+        .send()
+        .await
+        .map_err(|e| FdxErrorResponse::internal(format!("ledger fetch: {e}")))?;
+    let body: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| FdxErrorResponse::internal(format!("ledger decode: {e}")))?;
     let filter = consent_filter_from_headers(&state, &headers).await;
     Ok(Json(minimize_response(&body, &filter)))
 }
@@ -300,11 +360,21 @@ pub async fn get_account_transactions(
     headers: HeaderMap,
     Path(account_id): Path<Uuid>,
 ) -> Result<Json<serde_json::Value>, Response> {
-    let _a = middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Transactions)).await?;
+    let _a =
+        middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Transactions)).await?;
     let http = ledger_http(&state)?;
-    let resp = http.get(format!("{}/v1/accounts/{}/transactions", state.config.ledger_url, account_id))
-        .send().await.map_err(|e| FdxErrorResponse::internal(format!("ledger fetch: {e}")))?;
-    let body: serde_json::Value = resp.json().await.map_err(|e| FdxErrorResponse::internal(format!("ledger decode: {e}")))?;
+    let resp = http
+        .get(format!(
+            "{}/v1/accounts/{}/transactions",
+            state.config.ledger_url, account_id
+        ))
+        .send()
+        .await
+        .map_err(|e| FdxErrorResponse::internal(format!("ledger fetch: {e}")))?;
+    let body: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| FdxErrorResponse::internal(format!("ledger decode: {e}")))?;
     let filter = consent_filter_from_headers(&state, &headers).await;
     Ok(Json(minimize_response(&body, &filter)))
 }
@@ -401,7 +471,9 @@ pub async fn revoke_fdx_consent(
                 serde_json::json!({ "consent_id": id }),
             )
             .await;
-            Ok(Json(serde_json::json!({ "consentId": id, "status": "revoked" })))
+            Ok(Json(
+                serde_json::json!({ "consentId": id, "status": "revoked" }),
+            ))
         }
         None => Err(FdxErrorResponse::not_found("consent not found").into_response()),
     }
@@ -434,7 +506,13 @@ pub async fn list_recipient_providers(
     headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let _a = auth::verify_token(&state.config, &headers).await?;
-crate::policy::require(&state.policy, &_a, &headers, sentin8::shield::EvalTarget::new("bank8:fdx:recipient:read")).await?;
+    crate::policy::require(
+        &state.policy,
+        &_a,
+        &headers,
+        sentin8::shield::EvalTarget::new("bank8:fdx:recipient:read"),
+    )
+    .await?;
     // NOTE: no set_tenant_context — provider_profiles has no RLS, so this
     // returns all active providers across orgs (a global recipient catalog).
     let rows = sqlx::query(
@@ -454,7 +532,11 @@ crate::policy::require(&state.policy, &_a, &headers, sentin8::shield::EvalTarget
                 r.try_get("capabilities").unwrap_or(serde_json::json!([]));
             let clusters: Vec<String> = caps
                 .as_array()
-                .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|x| x.as_str().map(String::from))
+                        .collect()
+                })
                 .unwrap_or_default();
             serde_json::json!({
                 "id": r.get::<Uuid, _>("id"),
@@ -478,11 +560,21 @@ pub async fn list_account_statements(
     headers: HeaderMap,
     Path(account_id): Path<Uuid>,
 ) -> Result<Json<serde_json::Value>, Response> {
-    let _a = middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Statements)).await?;
+    let _a =
+        middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Statements)).await?;
     let http = ledger_http(&state)?;
-    let resp = http.get(format!("{}/v1/accounts/{}/statements", state.config.ledger_url, account_id))
-        .send().await.map_err(|e| FdxErrorResponse::internal(format!("ledger fetch: {e}")))?;
-    let body: serde_json::Value = resp.json().await.map_err(|e| FdxErrorResponse::internal(format!("ledger decode: {e}")))?;
+    let resp = http
+        .get(format!(
+            "{}/v1/accounts/{}/statements",
+            state.config.ledger_url, account_id
+        ))
+        .send()
+        .await
+        .map_err(|e| FdxErrorResponse::internal(format!("ledger fetch: {e}")))?;
+    let body: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| FdxErrorResponse::internal(format!("ledger decode: {e}")))?;
     let filter = consent_filter_from_headers(&state, &headers).await;
     let wrapped = serde_json::json!({ "statements": body });
     Ok(Json(minimize_response(&wrapped, &filter)))
@@ -494,11 +586,21 @@ pub async fn get_payment_networks(
     headers: HeaderMap,
     Path(account_id): Path<Uuid>,
 ) -> Result<Json<serde_json::Value>, Response> {
-    let _a = middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Accounts)).await?;
+    let _a =
+        middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Accounts)).await?;
     let http = ledger_http(&state)?;
-    let resp = http.get(format!("{}/v1/accounts/{}/payment-networks", state.config.ledger_url, account_id))
-        .send().await.map_err(|e| FdxErrorResponse::internal(format!("ledger fetch: {e}")))?;
-    let body: serde_json::Value = resp.json().await.map_err(|e| FdxErrorResponse::internal(format!("ledger decode: {e}")))?;
+    let resp = http
+        .get(format!(
+            "{}/v1/accounts/{}/payment-networks",
+            state.config.ledger_url, account_id
+        ))
+        .send()
+        .await
+        .map_err(|e| FdxErrorResponse::internal(format!("ledger fetch: {e}")))?;
+    let body: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| FdxErrorResponse::internal(format!("ledger decode: {e}")))?;
     let filter = consent_filter_from_headers(&state, &headers).await;
     let wrapped = serde_json::json!({ "payment_networks": body });
     Ok(Json(minimize_response(&wrapped, &filter)))
@@ -509,11 +611,18 @@ pub async fn list_customers(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, Response> {
-    let _a = middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Customers)).await?;
+    let _a =
+        middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Customers)).await?;
     let http = ledger_http(&state)?;
-    let resp = http.get(format!("{}/v1/customers", state.config.ledger_url))
-        .send().await.map_err(|e| FdxErrorResponse::internal(format!("ledger fetch: {e}")))?;
-    let body: serde_json::Value = resp.json().await.map_err(|e| FdxErrorResponse::internal(format!("ledger decode: {e}")))?;
+    let resp = http
+        .get(format!("{}/v1/customers", state.config.ledger_url))
+        .send()
+        .await
+        .map_err(|e| FdxErrorResponse::internal(format!("ledger fetch: {e}")))?;
+    let body: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| FdxErrorResponse::internal(format!("ledger decode: {e}")))?;
     let filter = consent_filter_from_headers(&state, &headers).await;
     let wrapped = serde_json::json!({ "customers": body });
     Ok(Json(minimize_response(&wrapped, &filter)))
@@ -524,12 +633,23 @@ pub async fn get_current_customer(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, Response> {
-    let a = middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Customers)).await?;
+    let a =
+        middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Customers)).await?;
     let http = ledger_http(&state)?;
     // Use the subject from the token to fetch the current customer.
-    let resp = http.get(format!("{}/v1/customers/{}", state.config.ledger_url, a.sub()))
-        .send().await.map_err(|e| FdxErrorResponse::internal(format!("ledger fetch: {e}")))?;
-    let body: serde_json::Value = resp.json().await.map_err(|e| FdxErrorResponse::internal(format!("ledger decode: {e}")))?;
+    let resp = http
+        .get(format!(
+            "{}/v1/customers/{}",
+            state.config.ledger_url,
+            a.sub()
+        ))
+        .send()
+        .await
+        .map_err(|e| FdxErrorResponse::internal(format!("ledger fetch: {e}")))?;
+    let body: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| FdxErrorResponse::internal(format!("ledger decode: {e}")))?;
     let filter = consent_filter_from_headers(&state, &headers).await;
     Ok(Json(minimize_response(&body, &filter)))
 }
@@ -549,7 +669,8 @@ pub async fn create_transfer(
     headers: HeaderMap,
     Json(req): Json<CreateTransferRequest>,
 ) -> Result<Json<serde_json::Value>, Response> {
-    let a = middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Transfers)).await?;
+    let a =
+        middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Transfers)).await?;
     let http = payments_http(&state)?;
     let payload = serde_json::json!({
         "from_account_id" : req.from_account_id,
@@ -557,11 +678,23 @@ pub async fn create_transfer(
         "amount": req.amount,
         "memo": req.memo,
     });
-    let resp = http.post(format!("{}/v1/transfers", state.config.payments_url))
+    let resp = http
+        .post(format!("{}/v1/transfers", state.config.payments_url))
         .json(&payload)
-        .send().await.map_err(|e| FdxErrorResponse::internal(format!("payments fetch: {e}")))?;
-    let body: serde_json::Value = resp.json().await.map_err(|e| FdxErrorResponse::internal(format!("payments decode: {e}")))?;
-    emit_event(&state.pool, a.env_id(), "bank8:fdx:transfer:created", body.clone()).await;
+        .send()
+        .await
+        .map_err(|e| FdxErrorResponse::internal(format!("payments fetch: {e}")))?;
+    let body: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| FdxErrorResponse::internal(format!("payments decode: {e}")))?;
+    emit_event(
+        &state.pool,
+        a.env_id(),
+        "bank8:fdx:transfer:created",
+        body.clone(),
+    )
+    .await;
     Ok(Json(body))
 }
 
@@ -586,11 +719,23 @@ pub async fn create_payment(
         "amount": req.amount,
         "counterparty": req.counterparty,
     });
-    let resp = http.post(format!("{}/v1/payments", state.config.payments_url))
+    let resp = http
+        .post(format!("{}/v1/payments", state.config.payments_url))
         .json(&payload)
-        .send().await.map_err(|e| FdxErrorResponse::internal(format!("payments fetch: {e}")))?;
-    let body: serde_json::Value = resp.json().await.map_err(|e| FdxErrorResponse::internal(format!("payments decode: {e}")))?;
-    emit_event(&state.pool, a.env_id(), "bank8:fdx:payment:created", body.clone()).await;
+        .send()
+        .await
+        .map_err(|e| FdxErrorResponse::internal(format!("payments fetch: {e}")))?;
+    let body: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| FdxErrorResponse::internal(format!("payments decode: {e}")))?;
+    emit_event(
+        &state.pool,
+        a.env_id(),
+        "bank8:fdx:payment:created",
+        body.clone(),
+    )
+    .await;
     Ok(Json(body))
 }
 
@@ -640,7 +785,11 @@ pub async fn get_certification_metrics(
         return Ok(Json(cached));
     }
     // Same-transaction discipline (fdx DESIGN.md §5) — see list_consents.
-    let mut conn = state.pool.begin().await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let mut conn = state
+        .pool
+        .begin()
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     set_tenant_context(&mut conn, a.env_id()).await;
     let row = sqlx::query(
         r#"SELECT
@@ -710,7 +859,13 @@ pub async fn start_consent(
     Json(req): Json<StartConsentRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
-crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget::new("bank8:fdx:recipient:write")).await?;
+    crate::policy::require(
+        &state.policy,
+        &a,
+        &headers,
+        sentin8::shield::EvalTarget::new("bank8:fdx:recipient:write"),
+    )
+    .await?;
     // Same-transaction discipline (fdx DESIGN.md §5): the tenant context
     // is transaction-local (`set_config(..., true)`) — it must live on
     // the SAME tx as the INSERT, or the row lands with
@@ -774,7 +929,10 @@ crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget:
         }
     };
     if provider_issuer.is_empty() {
-        return Err((StatusCode::BAD_GATEWAY, "provider profile has no issuer URL".into()));
+        return Err((
+            StatusCode::BAD_GATEWAY,
+            "provider profile has no issuer URL".into(),
+        ));
     }
 
     // The OAuth client belongs to the RECIPIENT (DESIGN.md §1): ensure a
@@ -811,13 +969,21 @@ crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget:
         ])
         .send()
         .await
-        .map_err(|e| (StatusCode::BAD_GATEWAY, format!("PAR request to provider: {e}")))?;
+        .map_err(|e| {
+            (
+                StatusCode::BAD_GATEWAY,
+                format!("PAR request to provider: {e}"),
+            )
+        })?;
 
     if !par_resp.status().is_success() {
         let status = par_resp.status();
         let body = par_resp.text().await.unwrap_or_default();
         tracing::error!(client_id = %client_id, %par_url, "bank8:fdx: PAR failed");
-        return Err((StatusCode::BAD_GATEWAY, format!("PAR failed: {status}: {body}")));
+        return Err((
+            StatusCode::BAD_GATEWAY,
+            format!("PAR failed: {status}: {body}"),
+        ));
     }
 
     let par_body: serde_json::Value = par_resp
@@ -904,7 +1070,13 @@ pub async fn consent_callback(
     };
     let consent_id = match consent_id {
         Some(id) => id,
-        None => return (StatusCode::BAD_REQUEST, "missing or invalid state (consent_id)").into_response(),
+        None => {
+            return (
+                StatusCode::BAD_REQUEST,
+                "missing or invalid state (consent_id)",
+            )
+                .into_response()
+        }
     };
 
     // RECIPIENT-OWNED CALLBACK (two-ledger model, fdx DESIGN.md §1): the
@@ -942,13 +1114,15 @@ pub async fn consent_callback(
     let reg_row = match reg_row {
         Ok(Some(r)) => r,
         Ok(None) => {
-            return (StatusCode::NOT_FOUND, "consent not found in the recipient registry").into_response()
+            return (
+                StatusCode::NOT_FOUND,
+                "consent not found in the recipient registry",
+            )
+                .into_response()
         }
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("db: {e}")).into_response(),
     };
-    let provider_id: String = reg_row
-        .try_get("provider_id")
-        .unwrap_or_default();
+    let provider_id: String = reg_row.try_get("provider_id").unwrap_or_default();
     let client_id: String = reg_row
         .try_get::<Option<String>, _>("client_id")
         .ok()
@@ -1049,13 +1223,20 @@ pub async fn consent_callback(
                     // DPoP (RFC 9449) — required under fapi_2 require_dpop
                     // for public non-exempt clients (auth design §3.4).
                     let htu = format!("{}/oauth/token", provider_issuer.trim_end_matches('/'));
-                    match sentin8::auth::fapi::dpop_proof("POST", &htu, None, pem, jsonwebtoken::Algorithm::ES256) {
-                        Ok(proof) => http
-                            .post(&token_url)
-                            .header("DPoP", proof)
-                            .form(&token_form)
-                            .send()
-                            .await,
+                    match sentin8::auth::fapi::dpop_proof(
+                        "POST",
+                        &htu,
+                        None,
+                        pem,
+                        jsonwebtoken::Algorithm::ES256,
+                    ) {
+                        Ok(proof) => {
+                            http.post(&token_url)
+                                .header("DPoP", proof)
+                                .form(&token_form)
+                                .send()
+                                .await
+                        }
                         Err(e) => {
                             tracing::warn!(error = %e, "bank8:fdx: DPoP proof generation failed — sending without proof");
                             http.post(&token_url).form(&token_form).send().await
@@ -1134,7 +1315,13 @@ pub async fn list_recipient_consents(
     Query(q): Query<ListConsentsQuery>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
-crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget::new("bank8:fdx:recipient:read")).await?;
+    crate::policy::require(
+        &state.policy,
+        &a,
+        &headers,
+        sentin8::shield::EvalTarget::new("bank8:fdx:recipient:read"),
+    )
+    .await?;
     // The recipient registry is THIS tenant's own table (two-ledger
     // model, DESIGN.md §1): same-env read under the caller's context —
     // the fintech's Connections page lists its customers' connections.
@@ -1191,7 +1378,13 @@ pub async fn refresh_consent(
     Path(id): Path<Uuid>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
-crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget::new("bank8:fdx:recipient:write")).await?;
+    crate::policy::require(
+        &state.policy,
+        &a,
+        &headers,
+        sentin8::shield::EvalTarget::new("bank8:fdx:recipient:write"),
+    )
+    .await?;
     // Same-transaction discipline (fdx DESIGN.md §5): the registry row
     // lives in THIS (recipient) tenant — context + read on one tx.
     let mut conn = state.pool.begin().await.map_err(err_db)?;
@@ -1210,7 +1403,10 @@ crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget:
     .await
     .map_err(err_db)?;
     let Some(row) = reg_row else {
-        return Err((StatusCode::NOT_FOUND, "consent not found or not active".into()));
+        return Err((
+            StatusCode::NOT_FOUND,
+            "consent not found or not active".into(),
+        ));
     };
     let provider_id: String = row.try_get("provider_id").unwrap_or_default();
     if !provider_id.is_empty() {
@@ -1238,7 +1434,8 @@ crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget:
             .flatten()
             .unwrap_or_default();
         // The recipient client's DPoP key (`fdx.recipients` — sealed).
-        let dpop_key_pem: Option<String> = load_recipient_dpop_key(&state, a.env_id(), &provider_id).await;
+        let dpop_key_pem: Option<String> =
+            load_recipient_dpop_key(&state, a.env_id(), &provider_id).await;
 
         // Refresh-token rotation: POST to the provider's token endpoint
         // with grant_type=refresh_token + DPoP proof. The new tokens are
@@ -1255,8 +1452,20 @@ crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget:
                 ];
                 let http = reqwest::Client::builder().build().unwrap_or_default();
                 let req = if let Some(ref pem) = dpop_key_pem {
-                    match sentin8::auth::fapi::dpop_proof("POST", &token_url, None, pem, jsonwebtoken::Algorithm::ES256) {
-                        Ok(proof) => http.post(&token_url).header("DPoP", proof).form(&form).send().await,
+                    match sentin8::auth::fapi::dpop_proof(
+                        "POST",
+                        &token_url,
+                        None,
+                        pem,
+                        jsonwebtoken::Algorithm::ES256,
+                    ) {
+                        Ok(proof) => {
+                            http.post(&token_url)
+                                .header("DPoP", proof)
+                                .form(&form)
+                                .send()
+                                .await
+                        }
                         Err(_) => http.post(&token_url).form(&form).send().await,
                     }
                 } else {
@@ -1270,7 +1479,11 @@ crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget:
                             let expires_in = token_body["expires_in"].as_i64().unwrap_or(3600);
                             if !access_token.is_empty() {
                                 if let Err(e) = tokens::store_provider_tokens(
-                                    &mut conn, id, access_token, new_refresh, expires_in,
+                                    &mut conn,
+                                    id,
+                                    access_token,
+                                    new_refresh,
+                                    expires_in,
                                 )
                                 .await
                                 {
@@ -1295,11 +1508,21 @@ crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget:
     let row = sqlx::query(
         r#"UPDATE recipient_consents SET status = 'active', updated_at = now() WHERE id = $1
             RETURNING id, customer_id, provider_id, status, scopes"#,
-    ).bind(id).fetch_optional(&mut *conn).await.map_err(err_db)?;
+    )
+    .bind(id)
+    .fetch_optional(&mut *conn)
+    .await
+    .map_err(err_db)?;
     match row {
         Some(r) => {
             conn.commit().await.map_err(err_db)?;
-            emit_event(&state.pool, a.env_id(), "bank8:fdx:recipientconsent:refreshed", serde_json::json!({ "consent_id": id })).await;
+            emit_event(
+                &state.pool,
+                a.env_id(),
+                "bank8:fdx:recipientconsent:refreshed",
+                serde_json::json!({ "consent_id": id }),
+            )
+            .await;
             Ok(Json(serde_json::json!({
                 "id": r.get::<Uuid, _>("id"),
                 "customer_id": r.get::<Uuid, _>("customer_id"),
@@ -1330,7 +1553,13 @@ pub async fn revoke_recipient_consent(
     Path(id): Path<Uuid>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
-crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget::new("bank8:fdx:recipient:write")).await?;
+    crate::policy::require(
+        &state.policy,
+        &a,
+        &headers,
+        sentin8::shield::EvalTarget::new("bank8:fdx:recipient:write"),
+    )
+    .await?;
     // Same-transaction discipline (fdx DESIGN.md §5): the registry row
     // lives in THIS (recipient) tenant.
     let mut conn = state.pool.begin().await.map_err(err_db)?;
@@ -1345,7 +1574,10 @@ crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget:
     .await
     .map_err(err_db)?;
     let Some(reg) = row else {
-        return Err((StatusCode::NOT_FOUND, "consent not found in the recipient registry".into()));
+        return Err((
+            StatusCode::NOT_FOUND,
+            "consent not found in the recipient registry".into(),
+        ));
     };
     let provider_id: String = reg.try_get("provider_id").unwrap_or_default();
 
@@ -1395,21 +1627,27 @@ crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget:
                 let url = format!(
                     "{}/fdx/v6/consents/{}/revocation",
                     base.trim_end_matches('/'),
-                        id
-                    );
-                    if let Err(e) = http
-                        .post(&url)
-                        .json(&serde_json::json!({ "reason": "USER_ACTION", "initiator": "RECIPIENT" }))
-                        .send()
-                        .await
-                    {
-                        tracing::warn!(consent_id = %id, error = %e, "bank8:fdx: provider-side revocation call failed (registry revoked; retry on next action)");
-                    }
+                    id
+                );
+                if let Err(e) = http
+                    .post(&url)
+                    .json(&serde_json::json!({ "reason": "USER_ACTION", "initiator": "RECIPIENT" }))
+                    .send()
+                    .await
+                {
+                    tracing::warn!(consent_id = %id, error = %e, "bank8:fdx: provider-side revocation call failed (registry revoked; retry on next action)");
                 }
             }
         }
+    }
 
-    emit_event(&state.pool, a.env_id(), "bank8:fdx:recipientconsent:revoked", serde_json::json!({ "consent_id": id })).await;
+    emit_event(
+        &state.pool,
+        a.env_id(),
+        "bank8:fdx:recipientconsent:revoked",
+        serde_json::json!({ "consent_id": id }),
+    )
+    .await;
     Ok(Json(serde_json::json!({
         "id": updated.get::<Uuid, _>("id"),
         "customer_id": updated.get::<Uuid, _>("customer_id"),
@@ -1440,11 +1678,20 @@ pub async fn list_recipient_accounts(
     Query(q): Query<ListRecipientAccountsQuery>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
-crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget::new("bank8:fdx:recipient:read")).await?;
+    crate::policy::require(
+        &state.policy,
+        &a,
+        &headers,
+        sentin8::shield::EvalTarget::new("bank8:fdx:recipient:read"),
+    )
+    .await?;
 
-    let http = reqwest::Client::builder()
-        .build()
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("http client: {e}")))?;
+    let http = reqwest::Client::builder().build().map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("http client: {e}"),
+        )
+    })?;
 
     // The recipient registry lives in THIS tenant (two-ledger model,
     // DESIGN.md §1): resolve the registry row + the delegated provider
@@ -1481,20 +1728,21 @@ crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget:
     };
     let cid: Uuid = consent_row.try_get("id").unwrap_or_default();
     let provider_id: String = consent_row.try_get("provider_id").unwrap_or_default();
-    let provider_token: String =
-        tokens::load_provider_access_token(&mut conn, cid).await.unwrap_or_default().unwrap_or_default();
+    let provider_token: String = tokens::load_provider_access_token(&mut conn, cid)
+        .await
+        .unwrap_or_default()
+        .unwrap_or_default();
 
     // The customer's selected accounts for this connection (persisted at
     // the callback from the AS's authorize redirect).
-    let selected: Vec<String> = sqlx::query(
-        r#"SELECT selected_account_ids FROM recipient_consents WHERE id = $1"#,
-    )
-    .bind(cid)
-    .fetch_one(&mut *conn)
-    .await
-    .ok()
-    .and_then(|r| r.try_get::<Vec<String>, _>("selected_account_ids").ok())
-    .unwrap_or_default();
+    let selected: Vec<String> =
+        sqlx::query(r#"SELECT selected_account_ids FROM recipient_consents WHERE id = $1"#)
+            .bind(cid)
+            .fetch_one(&mut *conn)
+            .await
+            .ok()
+            .and_then(|r| r.try_get::<Vec<String>, _>("selected_account_ids").ok())
+            .unwrap_or_default();
     let _ = conn.commit().await;
 
     // Resolve the provider's PUBLIC FDX data-plane host from the catalog
@@ -1518,11 +1766,18 @@ crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget:
         .and_then(|r| r.try_get::<Uuid, _>("env_id").ok())
         .unwrap_or_else(Uuid::nil);
     if provider_env_id.is_nil() {
-        return Err((StatusCode::NOT_FOUND, "provider not found in the catalog".into()));
+        return Err((
+            StatusCode::NOT_FOUND,
+            "provider not found in the catalog".into(),
+        ));
     }
-    let provider_fdx_base = provider_env_fdx_base_url(&state.pool, provider_env_id, "bank8:fdx").await;
+    let provider_fdx_base =
+        provider_env_fdx_base_url(&state.pool, provider_env_id, "bank8:fdx").await;
     if provider_fdx_base.is_empty() {
-        return Err((StatusCode::BAD_GATEWAY, "provider FDX host could not be derived".into()));
+        return Err((
+            StatusCode::BAD_GATEWAY,
+            "provider FDX host could not be derived".into(),
+        ));
     }
 
     // Call the provider's PUBLIC accounts surface with the delegated
@@ -1539,22 +1794,32 @@ crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget:
             .to_string()
     };
 
-    let resp = http.get(format!("{}/fdx/v6/accounts", provider_fdx_base.trim_end_matches('/')))
+    let resp = http
+        .get(format!(
+            "{}/fdx/v6/accounts",
+            provider_fdx_base.trim_end_matches('/')
+        ))
         .header("authorization", &bearer)
-        .send().await.map_err(|e| (StatusCode::BAD_GATEWAY, e.to_string()))?;
-    let body: serde_json::Value = resp.json().await.map_err(|e| (StatusCode::BAD_GATEWAY, e.to_string()))?;
+        .send()
+        .await
+        .map_err(|e| (StatusCode::BAD_GATEWAY, e.to_string()))?;
+    let body: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| (StatusCode::BAD_GATEWAY, e.to_string()))?;
 
     // The provider wraps accounts under "accounts" (FDX response shape
     // after CSDF minimization); normalize to the app's array contract.
-    let raw: Vec<serde_json::Value> = if let Some(arr) = body.get("accounts").and_then(|v| v.as_array()) {
-        arr.clone()
-    } else if let Some(arr) = body.as_array() {
-        arr.clone()
-    } else if let Some(arr) = body.get("data").and_then(|v| v.as_array()) {
-        arr.clone()
-    } else {
-        vec![body.clone()]
-    };
+    let raw: Vec<serde_json::Value> =
+        if let Some(arr) = body.get("accounts").and_then(|v| v.as_array()) {
+            arr.clone()
+        } else if let Some(arr) = body.as_array() {
+            arr.clone()
+        } else if let Some(arr) = body.get("data").and_then(|v| v.as_array()) {
+            arr.clone()
+        } else {
+            vec![body.clone()]
+        };
 
     // Filter the accounts to only the customer's selected ones for this
     // connection (empty selection = all consented accounts).
@@ -1576,7 +1841,6 @@ crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget:
     Ok(Json(serde_json::json!({ "accounts": accounts })))
 }
 
-
 /// `GET /v1/recipient/accounts/{id}/transactions` — recipient transaction history.
 pub async fn get_recipient_account_transactions(
     State(state): State<AppState>,
@@ -1584,11 +1848,26 @@ pub async fn get_recipient_account_transactions(
     Path(account_id): Path<Uuid>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let _a = auth::verify_token(&state.config, &headers).await?;
-crate::policy::require(&state.policy, &_a, &headers, sentin8::shield::EvalTarget::new("bank8:fdx:recipient:read")).await?;
+    crate::policy::require(
+        &state.policy,
+        &_a,
+        &headers,
+        sentin8::shield::EvalTarget::new("bank8:fdx:recipient:read"),
+    )
+    .await?;
     let http = ledger_http(&state).map_err(|e| (StatusCode::BAD_GATEWAY, e.message))?;
-    let resp = http.get(format!("{}/v1/accounts/{}/transactions", state.config.ledger_url, account_id))
-        .send().await.map_err(|e| (StatusCode::BAD_GATEWAY, e.to_string()))?;
-    let body: serde_json::Value = resp.json().await.map_err(|e| (StatusCode::BAD_GATEWAY, e.to_string()))?;
+    let resp = http
+        .get(format!(
+            "{}/v1/accounts/{}/transactions",
+            state.config.ledger_url, account_id
+        ))
+        .send()
+        .await
+        .map_err(|e| (StatusCode::BAD_GATEWAY, e.to_string()))?;
+    let body: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| (StatusCode::BAD_GATEWAY, e.to_string()))?;
     Ok(Json(body))
 }
 
@@ -1598,7 +1877,13 @@ pub async fn list_notifications(
     headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let _a = auth::verify_token(&state.config, &headers).await?;
-crate::policy::require(&state.policy, &_a, &headers, sentin8::shield::EvalTarget::new("bank8:fdx:recipient:read")).await?;
+    crate::policy::require(
+        &state.policy,
+        &_a,
+        &headers,
+        sentin8::shield::EvalTarget::new("bank8:fdx:recipient:read"),
+    )
+    .await?;
     Ok(Json(serde_json::json!({ "notifications": [] })))
 }
 
@@ -1620,14 +1905,23 @@ pub async fn get_provider_profile(
     headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
-crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget::new("bank8:fdx:provider:write")).await?;
+    crate::policy::require(
+        &state.policy,
+        &a,
+        &headers,
+        sentin8::shield::EvalTarget::new("bank8:fdx:provider:write"),
+    )
+    .await?;
     // Same-transaction discipline (fdx DESIGN.md §5) — see list_consents.
     let mut conn = state.pool.begin().await.map_err(err_db)?;
     set_tenant_context(&mut conn, a.env_id()).await;
     let row = sqlx::query(
         r#"SELECT id, provider_name, issuer_url, jwks_url, fdx_version, capabilities, status
              FROM provider_profiles ORDER BY created_at DESC LIMIT 1"#,
-    ).fetch_optional(&mut *conn).await.map_err(err_db)?;
+    )
+    .fetch_optional(&mut *conn)
+    .await
+    .map_err(err_db)?;
     match row {
         Some(r) => Ok(Json(serde_json::json!({
             "id": r.get::<Uuid, _>("id"),
@@ -1665,7 +1959,13 @@ pub async fn update_provider_profile(
     Json(req): Json<UpdateProviderProfileRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
-crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget::new("bank8:fdx:provider:write")).await?;
+    crate::policy::require(
+        &state.policy,
+        &a,
+        &headers,
+        sentin8::shield::EvalTarget::new("bank8:fdx:provider:write"),
+    )
+    .await?;
     // Same-transaction discipline (fdx DESIGN.md §5) — see start_consent.
     let mut conn = state.pool.begin().await.map_err(err_db)?;
     set_tenant_context(&mut conn, a.env_id()).await;
@@ -1701,19 +2001,30 @@ pub async fn list_recipients(
     headers: HeaderMap,
 ) -> Result<Json<Vec<serde_json::Value>>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
-crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget::new("bank8:fdx:provider:write")).await?;
+    crate::policy::require(
+        &state.policy,
+        &a,
+        &headers,
+        sentin8::shield::EvalTarget::new("bank8:fdx:provider:write"),
+    )
+    .await?;
     // Same-transaction discipline (fdx DESIGN.md §5) — see list_consents.
     let mut conn = state.pool.begin().await.map_err(err_db)?;
     set_tenant_context(&mut conn, a.env_id()).await;
     let rows = sqlx::query(
         r#"SELECT id, name, client_id, status, created_at FROM recipients ORDER BY created_at DESC"#,
     ).fetch_all(&mut *conn).await.map_err(err_db)?;
-    let recipients: Vec<serde_json::Value> = rows.iter().map(|r| serde_json::json!({
-        "id": r.get::<Uuid, _>("id"),
-        "name": r.try_get::<String, _>("name").unwrap_or_default(),
-        "client_id" : r.try_get::<String, _>("client_id").unwrap_or_default(),
-        "status": r.try_get::<String, _>("status").unwrap_or_default(),
-    })).collect();
+    let recipients: Vec<serde_json::Value> = rows
+        .iter()
+        .map(|r| {
+            serde_json::json!({
+                "id": r.get::<Uuid, _>("id"),
+                "name": r.try_get::<String, _>("name").unwrap_or_default(),
+                "client_id" : r.try_get::<String, _>("client_id").unwrap_or_default(),
+                "status": r.try_get::<String, _>("status").unwrap_or_default(),
+            })
+        })
+        .collect();
     Ok(Json(recipients))
 }
 
@@ -1753,7 +2064,13 @@ pub async fn list_admin_audit(
     headers: HeaderMap,
 ) -> Result<Json<Vec<serde_json::Value>>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
-crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget::new("bank8:fdx:provider:write")).await?;
+    crate::policy::require(
+        &state.policy,
+        &a,
+        &headers,
+        sentin8::shield::EvalTarget::new("bank8:fdx:provider:write"),
+    )
+    .await?;
     // Same-transaction discipline (fdx DESIGN.md §5) — see list_consents.
     let mut conn = state.pool.begin().await.map_err(err_db)?;
     set_tenant_context(&mut conn, a.env_id()).await;
@@ -1761,7 +2078,10 @@ crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget:
         r#"SELECT id, actor_user_id, action, target_resource_id, timestamp
              FROM audit_events
             ORDER BY timestamp DESC LIMIT 100"#,
-    ).fetch_all(&mut *conn).await.map_err(err_db)?;
+    )
+    .fetch_all(&mut *conn)
+    .await
+    .map_err(err_db)?;
     let entries: Vec<serde_json::Value> = rows.iter().map(|r| serde_json::json!({
         "id": r.try_get::<Uuid, _>("id").unwrap_or_default(),
         "actor_user_id": r.try_get::<Option<String>, _>("actor_user_id").ok().flatten().unwrap_or_default(),
@@ -1791,14 +2111,24 @@ pub async fn activate_recipient(
     Path(id): Path<Uuid>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
-crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget::new("bank8:fdx:provider:write")).await?;
+    crate::policy::require(
+        &state.policy,
+        &a,
+        &headers,
+        sentin8::shield::EvalTarget::new("bank8:fdx:provider:write"),
+    )
+    .await?;
     // Same-transaction discipline (fdx DESIGN.md §5) — see start_consent.
     let mut conn = state.pool.begin().await.map_err(err_db)?;
     set_tenant_context(&mut conn, a.env_id()).await;
     let row = sqlx::query(
         r#"UPDATE recipients SET status = 'active', updated_at = now() WHERE id = $1
             RETURNING id, name, client_id, status"#,
-    ).bind(id).fetch_optional(&mut *conn).await.map_err(err_db)?;
+    )
+    .bind(id)
+    .fetch_optional(&mut *conn)
+    .await
+    .map_err(err_db)?;
     match row {
         Some(r) => Ok(Json(serde_json::json!({
             "id": r.get::<Uuid, _>("id"),
@@ -1829,14 +2159,24 @@ pub async fn suspend_recipient(
     Path(id): Path<Uuid>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
-crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget::new("bank8:fdx:provider:write")).await?;
+    crate::policy::require(
+        &state.policy,
+        &a,
+        &headers,
+        sentin8::shield::EvalTarget::new("bank8:fdx:provider:write"),
+    )
+    .await?;
     // Same-transaction discipline (fdx DESIGN.md §5) — see start_consent.
     let mut conn = state.pool.begin().await.map_err(err_db)?;
     set_tenant_context(&mut conn, a.env_id()).await;
     let row = sqlx::query(
         r#"UPDATE recipients SET status = 'suspended', updated_at = now() WHERE id = $1
             RETURNING id, name, client_id, status"#,
-    ).bind(id).fetch_optional(&mut *conn).await.map_err(err_db)?;
+    )
+    .bind(id)
+    .fetch_optional(&mut *conn)
+    .await
+    .map_err(err_db)?;
     match row {
         Some(r) => Ok(Json(serde_json::json!({
             "id": r.get::<Uuid, _>("id"),
@@ -1867,7 +2207,13 @@ pub async fn get_recipient_provider(
     Path(id): Path<String>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let _a = auth::verify_token(&state.config, &headers).await?;
-crate::policy::require(&state.policy, &_a, &headers, sentin8::shield::EvalTarget::new("bank8:fdx:recipient:read")).await?;
+    crate::policy::require(
+        &state.policy,
+        &_a,
+        &headers,
+        sentin8::shield::EvalTarget::new("bank8:fdx:recipient:read"),
+    )
+    .await?;
     let row = sqlx::query(
         r#"SELECT id, provider_name, issuer_url, fdx_version, capabilities, status
              FROM provider_profiles
@@ -1881,9 +2227,15 @@ crate::policy::require(&state.policy, &_a, &headers, sentin8::shield::EvalTarget
     .map_err(err_db)?;
     match row {
         Some(r) => {
-            let caps: serde_json::Value = r.try_get("capabilities").unwrap_or(serde_json::json!([]));
-            let clusters: Vec<String> = caps.as_array()
-                .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+            let caps: serde_json::Value =
+                r.try_get("capabilities").unwrap_or(serde_json::json!([]));
+            let clusters: Vec<String> = caps
+                .as_array()
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|x| x.as_str().map(String::from))
+                        .collect()
+                })
                 .unwrap_or_default();
             Ok(Json(serde_json::json!({
                 "id": r.get::<Uuid, _>("id"),
@@ -1917,7 +2269,13 @@ pub async fn get_recipient_consent(
     Path(id): Path<Uuid>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
-crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget::new("bank8:fdx:recipient:read")).await?;
+    crate::policy::require(
+        &state.policy,
+        &a,
+        &headers,
+        sentin8::shield::EvalTarget::new("bank8:fdx:recipient:read"),
+    )
+    .await?;
     // The recipient registry is THIS tenant's own table (two-ledger
     // model, DESIGN.md §1): same-env read under the caller's context.
     let mut conn = state.pool.begin().await.map_err(err_db)?;
@@ -1926,7 +2284,11 @@ crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget:
         r#"SELECT id, customer_id, provider_id, provider_name, status, scopes,
                   selected_account_ids, created_at, updated_at
              FROM recipient_consents WHERE id = $1"#,
-    ).bind(id).fetch_optional(&mut *conn).await.map_err(err_db)?;
+    )
+    .bind(id)
+    .fetch_optional(&mut *conn)
+    .await
+    .map_err(err_db)?;
     let _ = conn.commit().await;
     match row {
         Some(r) => Ok(Json(serde_json::json!({
@@ -1941,7 +2303,10 @@ crate::policy::require(&state.policy, &a, &headers, sentin8::shield::EvalTarget:
             "created_at": r.get::<chrono::DateTime<chrono::Utc>, _>("created_at"),
             "updated_at": r.get::<chrono::DateTime<chrono::Utc>, _>("updated_at"),
         }))),
-        None => Err((StatusCode::NOT_FOUND, "consent not found in the recipient registry".into())),
+        None => Err((
+            StatusCode::NOT_FOUND,
+            "consent not found in the recipient registry".into(),
+        )),
     }
 }
 
@@ -1960,7 +2325,9 @@ pub async fn execute_step(
 // ── Health ───────────────────────────────────────────────────────────────
 
 pub async fn health() -> Json<serde_json::Value> {
-    Json(serde_json::json!({ "status": "ok", "service": "fdx", "version": sentin8::build_info::id(), "build": sentin8::build_info::build_hash() }))
+    Json(
+        serde_json::json!({ "status": "ok", "service": "fdx", "version": sentin8::build_info::id(), "build": sentin8::build_info::build_hash() }),
+    )
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -2011,11 +2378,11 @@ async fn provider_env_fdx_base_url(
     service: &str,
 ) -> String {
     let cfg = sentin8::config::Sentin8Config::from_env();
- // VDC §VDC.5 — the env identity (slug + org domain) is resolved
- // through Sys's tenant-snapshot API (the sanctioned on-demand
- // cross-tenant read); the former cross-database
- // `sentin8.sys_environments` joins never existed in the vertical's
- // own database and always returned empty (fail-closed no-URL).
+    // VDC §VDC.5 — the env identity (slug + org domain) is resolved
+    // through Sys's tenant-snapshot API (the sanctioned on-demand
+    // cross-tenant read); the former cross-database
+    // `sentin8.sys_environments` joins never existed in the vertical's
+    // own database and always returned empty (fail-closed no-URL).
     let (env_slug, org_domain) = match crate::tenant_snapshot::env_identity(provider_env_id).await {
         Ok(Some(pair)) => pair,
         Ok(None) => {
@@ -2050,7 +2417,9 @@ async fn own_env_callback_url(state: &AppState, env_id: Uuid) -> String {
     }
     let cfg = sentin8::config::Sentin8Config::from_env();
     let env_domain = cfg.env_domain(&env_slug, &org_domain);
-    let fdx_base = cfg.env_service_url(&state.pool, "bank8:fdx", &env_domain).await;
+    let fdx_base = cfg
+        .env_service_url(&state.pool, "bank8:fdx", &env_domain)
+        .await;
     if fdx_base.is_empty() {
         return String::new();
     }
@@ -2092,7 +2461,10 @@ async fn ensure_recipient_client(
     // and token exchange echo — derive it once here.
     let callback_url = own_env_callback_url(state, env_id).await;
     if callback_url.is_empty() {
-        return Err((StatusCode::INTERNAL_SERVER_ERROR, "recipient callback host could not be derived".into()));
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "recipient callback host could not be derived".into(),
+        ));
     }
 
     if let Some(row) = existing.as_ref() {
@@ -2108,7 +2480,8 @@ async fn ensure_recipient_client(
 
     // Register a fresh public client (PKCE-only, token_endpoint_auth_method
     // none) — the recipient's own identity at the provider's AS.
-    let scope = "bank8:fdx:accountbasic:read bank8:fdx:accountdetailed:read bank8:fdx:transactions:read";
+    let scope =
+        "bank8:fdx:accountbasic:read bank8:fdx:accountdetailed:read bank8:fdx:transactions:read";
     let dcr_req = serde_json::json!({
         "client_name": "bank8:fdx:recipient",
         "redirect_uris": [callback_url],
@@ -2127,11 +2500,19 @@ async fn ensure_recipient_client(
         .json(&dcr_req)
         .send()
         .await
-        .map_err(|e| (StatusCode::BAD_GATEWAY, format!("DCR request to provider AS: {e}")))?;
+        .map_err(|e| {
+            (
+                StatusCode::BAD_GATEWAY,
+                format!("DCR request to provider AS: {e}"),
+            )
+        })?;
     if !resp.status().is_success() {
         let status = resp.status();
         let body = resp.text().await.unwrap_or_default();
-        return Err((StatusCode::BAD_GATEWAY, format!("DCR failed: {status}: {body}")));
+        return Err((
+            StatusCode::BAD_GATEWAY,
+            format!("DCR failed: {status}: {body}"),
+        ));
     }
     let body: serde_json::Value = resp
         .json()
@@ -2139,13 +2520,20 @@ async fn ensure_recipient_client(
         .map_err(|e| (StatusCode::BAD_GATEWAY, format!("DCR decode: {e}")))?;
     let client_id = body["client_id"]
         .as_str()
-        .ok_or((StatusCode::BAD_GATEWAY, "DCR response missing client_id".into()))?
+        .ok_or((
+            StatusCode::BAD_GATEWAY,
+            "DCR response missing client_id".into(),
+        ))?
         .to_string();
 
     // Generate + seal the DPoP key for this (recipient, provider) client —
     // key material in the secrets backend, only the reference on the row.
-    let pem = sentin8::auth::fapi::generate_dpop_key_pem()
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("dpop keygen: {e}")))?;
+    let pem = sentin8::auth::fapi::generate_dpop_key_pem().map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("dpop keygen: {e}"),
+        )
+    })?;
 
     if let Some(row) = existing {
         let row_id: Uuid = row.get("id");
@@ -2192,7 +2580,11 @@ async fn ensure_recipient_client(
 
 /// Load the recipient's DPoP signing key PEM for the given provider
 /// (sealed reference on the `fdx.recipients` row).
-async fn load_recipient_dpop_key(state: &AppState, env_id: Uuid, provider_id: &str) -> Option<String> {
+async fn load_recipient_dpop_key(
+    state: &AppState,
+    env_id: Uuid,
+    provider_id: &str,
+) -> Option<String> {
     let mut conn = state.pool.begin().await.ok()?;
     set_tenant_context(&mut conn, env_id).await;
     let row = sqlx::query(
@@ -2206,7 +2598,10 @@ async fn load_recipient_dpop_key(state: &AppState, env_id: Uuid, provider_id: &s
     .await
     .ok()??;
     let row_id: Uuid = row.get("id");
-    crate::tokens::load_dpop_key(&mut conn, row_id).await.ok().flatten()
+    crate::tokens::load_dpop_key(&mut conn, row_id)
+        .await
+        .ok()
+        .flatten()
 }
 
 /// URL-encode a string for use in query parameters.
@@ -2228,9 +2623,15 @@ fn urlencoding(s: &str) -> String {
 /// FORCE-RLS'd; the pool helper sets the tenant context on its own
 /// connection. Errors are logged and ignored — the committed domain row
 /// stays authoritative and the relay retries from the outbox.
-pub(crate) async fn emit_event(pool: &sqlx::PgPool, env_id: uuid::Uuid, event_type: &str, payload: serde_json::Value) {
+pub(crate) async fn emit_event(
+    pool: &sqlx::PgPool,
+    env_id: uuid::Uuid,
+    event_type: &str,
+    payload: serde_json::Value,
+) {
     if let Err(e) =
-        sentin8::bus::outbox::insert_outbox_row_pool(pool, env_id, "fdx", event_type, &payload).await
+        sentin8::bus::outbox::insert_outbox_row_pool(pool, env_id, "fdx", event_type, &payload)
+            .await
     {
         tracing::warn!(error = %e, event_type = %event_type, "bank8:fdx: failed to emit outbox event");
     }

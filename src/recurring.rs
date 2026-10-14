@@ -31,21 +31,30 @@ fn payments_http(state: &AppState) -> Result<reqwest::Client, axum::response::Re
         .config
         .payments_http()
         .cloned()
-        .ok_or_else(|| FdxErrorResponse::internal("payments proxy transport absent (workload certificate not provisioned)".to_string()))
+        .ok_or_else(|| {
+            FdxErrorResponse::internal(
+                "payments proxy transport absent (workload certificate not provisioned)"
+                    .to_string(),
+            )
+        })
         .map_err(axum::response::IntoResponse::into_response)
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateRecurringPaymentRequest {
-    #[serde(alias = "fromAccountId")] pub from_account_id: Uuid,
+    #[serde(alias = "fromAccountId")]
+    pub from_account_id: Uuid,
     pub to_payee_id: Option<Uuid>,
     pub amount: JsonValue,
     /// MONTHLY | WEEKLY | QUARTERLY | ANNUALLY
     pub frequency: String,
     /// NUMBEROFTIMES | UNTILDATE | NONE
-    #[serde(default)] pub duration_type: Option<String>,
-    #[serde(default)] pub number_of_times: Option<i32>,
-    #[serde(default)] pub due_date: Option<String>,
+    #[serde(default)]
+    pub duration_type: Option<String>,
+    #[serde(default)]
+    pub number_of_times: Option<i32>,
+    #[serde(default)]
+    pub due_date: Option<String>,
 }
 
 /// `POST /fdx/v6/recurring-payments` — create a recurring payment
@@ -58,8 +67,9 @@ pub async fn create_recurring_payment(
     let a = middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
     // Map the FDX frequency to an RFC 5545 RRULE (Sentin8:Cron is the
     // scheduler; payments `POST /v1beta/scheduled-payments` persists it).
-    let rrule = frequency_to_rrule(&req.frequency)
-        .ok_or_else(|| FdxErrorResponse::bad_request(format!("unsupported frequency {}", req.frequency)))?;
+    let rrule = frequency_to_rrule(&req.frequency).ok_or_else(|| {
+        FdxErrorResponse::bad_request(format!("unsupported frequency {}", req.frequency))
+    })?;
     let http = payments_http(&state)?;
     let payload = serde_json::json!({
         "account_id": req.from_account_id,
@@ -69,7 +79,10 @@ pub async fn create_recurring_payment(
         "recurrence_rule": rrule,
     });
     let resp = http
-        .post(format!("{}/v1beta/scheduled-payments", state.config.payments_url))
+        .post(format!(
+            "{}/v1beta/scheduled-payments",
+            state.config.payments_url
+        ))
         .json(&payload)
         .send()
         .await
@@ -78,8 +91,18 @@ pub async fn create_recurring_payment(
         .json()
         .await
         .map_err(|e| FdxErrorResponse::internal(format!("payments decode: {e}")))?;
-    let id = body.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
-    emit_event(&state.pool, a.env_id(), "bank8:fdx:recurringpayment:created", serde_json::json!({ "recurring_payment_id": id })).await;
+    let id = body
+        .get("id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    emit_event(
+        &state.pool,
+        a.env_id(),
+        "bank8:fdx:recurringpayment:created",
+        serde_json::json!({ "recurring_payment_id": id }),
+    )
+    .await;
     Ok(Json(serde_json::json!({
         "recurringPaymentId": id,
         "frequency": req.frequency,
@@ -106,7 +129,8 @@ pub async fn list_recurring_payments(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<Json<JsonValue>, Response> {
-    let _a = middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
+    let _a =
+        middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
     proxy_payments_get(&state, "/v1beta/scheduled-payments").await
 }
 
@@ -116,7 +140,8 @@ pub async fn get_recurring_payment(
     headers: HeaderMap,
     Path(rp_id): Path<Uuid>,
 ) -> Result<Json<JsonValue>, Response> {
-    let _a = middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
+    let _a =
+        middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
     proxy_payments_get(&state, &format!("/v1beta/scheduled-payments/{rp_id}")).await
 }
 
@@ -127,7 +152,8 @@ pub async fn list_recurring_payment_occurrences(
     headers: HeaderMap,
     Path(rp_id): Path<Uuid>,
 ) -> Result<Json<JsonValue>, Response> {
-    let _a = middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
+    let _a =
+        middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
     proxy_payments_get(&state, &format!("/v1beta/scheduled-payments/{rp_id}")).await
 }
 
@@ -139,7 +165,10 @@ mod tests {
     fn frequency_rrule_mapping() {
         assert_eq!(frequency_to_rrule("MONTHLY"), Some("FREQ=MONTHLY".into()));
         assert_eq!(frequency_to_rrule("weekly"), Some("FREQ=WEEKLY".into()));
-        assert_eq!(frequency_to_rrule("QUARTERLY"), Some("FREQ=MONTHLY;INTERVAL=3".into()));
+        assert_eq!(
+            frequency_to_rrule("QUARTERLY"),
+            Some("FREQ=MONTHLY;INTERVAL=3".into())
+        );
         assert_eq!(frequency_to_rrule("ANNUAL"), Some("FREQ=YEARLY".into()));
         assert_eq!(frequency_to_rrule("YEARLY"), Some("FREQ=YEARLY".into()));
         assert_eq!(frequency_to_rrule("DAILY"), None, "FDX enum has no DAILY");

@@ -128,9 +128,11 @@ pub struct UpdateConsentLifecycleRequest {
     /// ONE_TIME | PERSISTENT | TIME_BOUND
     pub duration_type: String,
     /// Days from original grant (required for TIME_BOUND).
-    #[serde(default)] pub duration_period_days: Option<i32>,
+    #[serde(default)]
+    pub duration_period_days: Option<i32>,
     /// Days of historical data requestable (from request time).
-    #[serde(default)] pub lookback_period_days: Option<i32>,
+    #[serde(default)]
+    pub lookback_period_days: Option<i32>,
 }
 
 /// Validate the FDX duration model: TIME_BOUND requires durationPeriod;
@@ -143,15 +145,23 @@ pub fn validate_duration_model(
     match duration_type {
         "TIME_BOUND" => {
             if duration_period_days.map(|d| d <= 0).unwrap_or(true) {
-                return Err("durationPeriod (days > 0) is required for durationType TIME_BOUND".into());
+                return Err(
+                    "durationPeriod (days > 0) is required for durationType TIME_BOUND".into(),
+                );
             }
         }
         "ONE_TIME" | "PERSISTENT" => {
             if duration_period_days.is_some() {
-                return Err(format!("durationPeriod must not be set for durationType {duration_type}"));
+                return Err(format!(
+                    "durationPeriod must not be set for durationType {duration_type}"
+                ));
             }
         }
-        other => return Err(format!("invalid durationType '{other}' (allowed: ONE_TIME, PERSISTENT, TIME_BOUND)")),
+        other => {
+            return Err(format!(
+                "invalid durationType '{other}' (allowed: ONE_TIME, PERSISTENT, TIME_BOUND)"
+            ))
+        }
     }
     if let Some(d) = lookback_period_days {
         if d < 0 {
@@ -170,8 +180,12 @@ pub async fn update_consent_lifecycle(
     Json(req): Json<UpdateConsentLifecycleRequest>,
 ) -> Result<Json<JsonValue>, Response> {
     let a = middleware::provider_authz(&state, &headers, None).await?;
-    validate_duration_model(&req.duration_type, req.duration_period_days, req.lookback_period_days)
-        .map_err(|e| FdxErrorResponse::bad_request(e))?;
+    validate_duration_model(
+        &req.duration_type,
+        req.duration_period_days,
+        req.lookback_period_days,
+    )
+    .map_err(FdxErrorResponse::bad_request)?;
     // Same-transaction discipline (fdx DESIGN.md §5) — see revoke_consent_with_record.
     let mut conn = state.pool.begin().await.map_err(db_err)?;
     set_tenant_context(&mut conn, a.env_id()).await;
@@ -198,7 +212,13 @@ pub async fn update_consent_lifecycle(
     .ok_or_else(|| FdxErrorResponse::new(404, "1107", "Data not found for request parameters"))?;
     let _id: Uuid = updated.get("id");
     conn.commit().await.map_err(db_err)?;
-    emit_event(&state.pool, a.env_id(), "bank8:fdx:consent:updated", serde_json::json!({ "consent_id": consent_id, "duration_type": req.duration_type })).await;
+    emit_event(
+        &state.pool,
+        a.env_id(),
+        "bank8:fdx:consent:updated",
+        serde_json::json!({ "consent_id": consent_id, "duration_type": req.duration_type }),
+    )
+    .await;
     Ok(Json(serde_json::json!({
         "consentId": consent_id,
         "durationType": req.duration_type,
@@ -210,7 +230,10 @@ pub async fn update_consent_lifecycle(
 /// Lookback filter: the earliest transaction date a consent permits
 /// (— measured from request time, not grant time; §6.2). None means
 /// unrestricted (no lookbackPeriod set).
-pub fn lookback_cutoff(lookback_period_days: Option<i32>, now: chrono::DateTime<chrono::Utc>) -> Option<chrono::DateTime<chrono::Utc>> {
+pub fn lookback_cutoff(
+    lookback_period_days: Option<i32>,
+    now: chrono::DateTime<chrono::Utc>,
+) -> Option<chrono::DateTime<chrono::Utc>> {
     lookback_period_days.map(|d| now - chrono::Duration::days(d as i64))
 }
 

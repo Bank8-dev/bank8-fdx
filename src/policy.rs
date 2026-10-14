@@ -19,7 +19,6 @@
 //! scope check. Raw access tokens/private keys stay secret-referenced
 //! (fdx design §SEC); policy stores no credentials.
 
-
 #[allow(unused_imports)]
 pub use sentin8::shield::runtime::{
     check_policy, engine_for, policy_bus_client, request_ctx, spawn_hot_reload,

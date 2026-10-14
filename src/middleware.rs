@@ -336,7 +336,13 @@ mod tests {
 
     #[test]
     fn test_scope_for_cluster_maps_all() {
-        assert_eq!(scope_for_cluster(csdf::DataCluster::Accounts), "bank8:fdx:accountbasic:read");
-        assert_eq!(scope_for_cluster(csdf::DataCluster::Tax), "bank8:fdx:tax:read");
+        assert_eq!(
+            scope_for_cluster(csdf::DataCluster::Accounts),
+            "bank8:fdx:accountbasic:read"
+        );
+        assert_eq!(
+            scope_for_cluster(csdf::DataCluster::Tax),
+            "bank8:fdx:tax:read"
+        );
     }
 }

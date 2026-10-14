@@ -34,10 +34,7 @@ pub fn is_out_of_scope_path(path: &str) -> bool {
         "/fdx/v6/terms-and-conditions",
         "/fdx/v6/contacts",
     ];
-    const ACCOUNT_SCOPED: &[&str] = &[
-        "/reward-transactions",
-        "/transaction-images/",
-    ];
+    const ACCOUNT_SCOPED: &[&str] = &["/reward-transactions", "/transaction-images/"];
     if WHOLE_FAMILIES.iter().any(|p| path.starts_with(p)) {
         return true;
     }
@@ -110,8 +107,12 @@ mod tests {
 
     #[test]
     fn out_of_scope_account_scoped() {
-        assert!(is_out_of_scope_path("/fdx/v6/accounts/abc/reward-transactions"));
-        assert!(is_out_of_scope_path("/fdx/v6/accounts/abc/transaction-images/img1"));
+        assert!(is_out_of_scope_path(
+            "/fdx/v6/accounts/abc/reward-transactions"
+        ));
+        assert!(is_out_of_scope_path(
+            "/fdx/v6/accounts/abc/transaction-images/img1"
+        ));
     }
 
     #[test]
@@ -147,7 +148,10 @@ mod tests {
             "/fdx/v6/operation-support",
         ];
         for p in ok {
-            assert!(!is_out_of_scope_path(p), "{p} wrongly classified out of scope");
+            assert!(
+                !is_out_of_scope_path(p),
+                "{p} wrongly classified out of scope"
+            );
         }
     }
 

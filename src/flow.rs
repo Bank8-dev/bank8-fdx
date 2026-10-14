@@ -8,8 +8,8 @@
 //! types and registers its step handler profile with Flow.
 
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use utoipa::ToSchema;
+use uuid::Uuid;
 
 /// Request body for the Flow proxy-back `POST /v1/internal/steps/execute`.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -36,26 +36,50 @@ pub struct ProxyBackResponse {
 
 impl ProxyBackResponse {
     pub fn success(output: serde_json::Value) -> Self {
-        Self { status: "success".into(), output: Some(output), error: None, next_step: None }
+        Self {
+            status: "success".into(),
+            output: Some(output),
+            error: None,
+            next_step: None,
+        }
     }
     pub fn failure(err: impl Into<String>) -> Self {
-        Self { status: "failed".into(), output: None, error: Some(err.into()), next_step: None }
+        Self {
+            status: "failed".into(),
+            output: None,
+            error: Some(err.into()),
+            next_step: None,
+        }
     }
     pub fn waiting() -> Self {
-        Self { status: "waiting".into(), output: None, error: None, next_step: None }
+        Self {
+            status: "waiting".into(),
+            output: None,
+            error: None,
+            next_step: None,
+        }
     }
 }
 
 /// Validate consent scope, parties, and expiry (ConsentValidationStep).
 /// Input: `{ "consent_id" : Uuid, "required_scopes" : [String] }`
 pub fn validate_consent(input: &serde_json::Value) -> ProxyBackResponse {
-    let consent_id = match input.get("consent_id").and_then(|v| v.as_str()).and_then(|s| Uuid::parse_str(s).ok()) {
+    let consent_id = match input
+        .get("consent_id")
+        .and_then(|v| v.as_str())
+        .and_then(|s| Uuid::parse_str(s).ok())
+    {
         Some(id) => id,
         None => return ProxyBackResponse::failure("missing consent_id"),
     };
-    let required: Vec<String> = input.get("required_scopes")
+    let required: Vec<String> = input
+        .get("required_scopes")
         .and_then(|v| v.as_array())
-        .map(|a| a.iter().filter_map(|i| i.as_str().map(String::from)).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|i| i.as_str().map(String::from))
+                .collect()
+        })
         .unwrap_or_default();
     if required.is_empty() {
         return ProxyBackResponse::failure("required_scopes must not be empty");
@@ -75,15 +99,26 @@ pub fn validate_consent(input: &serde_json::Value) -> ProxyBackResponse {
 /// (DataRefreshStep).
 /// Input: `{ "consent_id" : Uuid, "customer_id" : Uuid, "provider_id" : String }`
 pub fn refresh_data(input: &serde_json::Value) -> ProxyBackResponse {
-    let consent_id = match input.get("consent_id").and_then(|v| v.as_str()).and_then(|s| Uuid::parse_str(s).ok()) {
+    let consent_id = match input
+        .get("consent_id")
+        .and_then(|v| v.as_str())
+        .and_then(|s| Uuid::parse_str(s).ok())
+    {
         Some(id) => id,
         None => return ProxyBackResponse::failure("missing consent_id"),
     };
-    let customer_id = match input.get("customer_id").and_then(|v| v.as_str()).and_then(|s| Uuid::parse_str(s).ok()) {
+    let customer_id = match input
+        .get("customer_id")
+        .and_then(|v| v.as_str())
+        .and_then(|s| Uuid::parse_str(s).ok())
+    {
         Some(id) => id,
         None => return ProxyBackResponse::failure("missing customer_id"),
     };
-    let provider_id = input.get("provider_id").and_then(|v| v.as_str()).unwrap_or("default");
+    let provider_id = input
+        .get("provider_id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("default");
     // Stub: produce a consent artifact reference.
     let artifact_id = Uuid::new_v4();
     ProxyBackResponse::success(serde_json::json!({
@@ -131,7 +166,10 @@ pub async fn register_with_flow(
         None => (reqwest::Client::new(), Some(sentin8_flow_token)),
     };
     let mut req = http
-        .post(format!("{}/v1/handlers/register", sentin8_flow_url.trim_end_matches('/')))
+        .post(format!(
+            "{}/v1/handlers/register",
+            sentin8_flow_url.trim_end_matches('/')
+        ))
         .json(&body);
     if let Some(t) = bearer {
         req = req.bearer_auth(t);

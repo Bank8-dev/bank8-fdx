@@ -18,9 +18,7 @@
 /// The env identity fields URL derivation needs (Sys
 /// `GET /v1/tenants/{env_id}` response). `Ok(None)` = 404 — the caller
 /// derives nothing (fail-closed); `Err` = transport/5xx — also fail-closed.
-pub async fn env_identity(
-    env_id: uuid::Uuid,
-) -> Result<Option<(String, String)>, String> {
+pub async fn env_identity(env_id: uuid::Uuid) -> Result<Option<(String, String)>, String> {
     let cfg = sentin8::config::Sentin8Config::from_env();
     let ca_path = sentin8::auth::m2m::platform_ca_path();
     let cert = sentin8::auth::m2m::ensure_workload_certificate(
@@ -37,7 +35,11 @@ pub async fn env_identity(
     );
     let http = sentin8::middleware::mtls::build_mtls_client(&mtls)
         .map_err(|e| format!("transport: {e}"))?;
-    let url = format!("{}/v1/tenants/{}", cfg.sentin8_sys_url().trim_end_matches('/'), env_id);
+    let url = format!(
+        "{}/v1/tenants/{}",
+        cfg.sentin8_sys_url().trim_end_matches('/'),
+        env_id
+    );
     let resp = http
         .get(&url)
         .send()

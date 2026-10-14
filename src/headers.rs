@@ -26,16 +26,27 @@ pub struct FdxHeaders {
 impl FdxHeaders {
     /// Returns the interaction ID or generates a new one if absent.
     pub fn interaction_id_or_new(&self) -> String {
-        self.interaction_id.clone().unwrap_or_else(generate_interaction_id)
+        self.interaction_id
+            .clone()
+            .unwrap_or_else(generate_interaction_id)
     }
 }
 
 /// Extract FDX headers from an Axum `HeaderMap`.
 pub fn extract_fdx_headers(headers: &HeaderMap) -> FdxHeaders {
     FdxHeaders {
-        interaction_id: headers.get(&X_FAPI_INTERACTION_ID).and_then(|v| v.to_str().ok()).map(|s| s.to_string()),
-        actor_type: headers.get(&BANK8_FDX_API_ACTOR_TYPE).and_then(|v| v.to_str().ok()).map(|s| s.to_string()),
-        idempotency_key: headers.get(&IDEMPOTENCY_KEY).and_then(|v| v.to_str().ok()).map(|s| s.to_string()),
+        interaction_id: headers
+            .get(&X_FAPI_INTERACTION_ID)
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string()),
+        actor_type: headers
+            .get(&BANK8_FDX_API_ACTOR_TYPE)
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string()),
+        idempotency_key: headers
+            .get(&IDEMPOTENCY_KEY)
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string()),
     }
 }
 
@@ -54,7 +65,10 @@ pub fn generate_interaction_id() -> String {
 /// `x-fdx-client-key-alg` so the recipient can correlate.
 pub fn fdx_party_headers(headers: &HeaderMap) -> serde_json::Value {
     let h = |name: &str| -> Option<String> {
-        headers.get(name).and_then(|v| v.to_str().ok()).map(|s| s.to_string())
+        headers
+            .get(name)
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string())
     };
     serde_json::json!({
         "client_public_key_present": h("FDX-API-Client-Public-Key").is_some(),
@@ -112,13 +126,21 @@ mod tests {
 
     #[test]
     fn test_interaction_id_or_new_when_present() {
-        let f = FdxHeaders { interaction_id: Some("existing".into()), actor_type: None, idempotency_key: None };
+        let f = FdxHeaders {
+            interaction_id: Some("existing".into()),
+            actor_type: None,
+            idempotency_key: None,
+        };
         assert_eq!(f.interaction_id_or_new(), "existing");
     }
 
     #[test]
     fn test_interaction_id_or_new_when_absent() {
-        let f = FdxHeaders { interaction_id: None, actor_type: None, idempotency_key: None };
+        let f = FdxHeaders {
+            interaction_id: None,
+            actor_type: None,
+            idempotency_key: None,
+        };
         let id = f.interaction_id_or_new();
         assert!(uuid::Uuid::parse_str(&id).is_ok());
     }
@@ -141,7 +163,10 @@ mod tests {
         let req = make_headers(&[("x-fapi-interaction-id", "req-id-1")]);
         let mut resp = HeaderMap::new();
         inject_interaction_id(&req, &mut resp);
-        assert_eq!(resp.get(&X_FAPI_INTERACTION_ID).unwrap().to_str().unwrap(), "req-id-1");
+        assert_eq!(
+            resp.get(&X_FAPI_INTERACTION_ID).unwrap().to_str().unwrap(),
+            "req-id-1"
+        );
     }
 
     #[test]

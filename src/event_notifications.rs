@@ -32,24 +32,42 @@ use crate::middleware;
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateSubscriptionRequest {
     /// FDX EventType (CONSENT_REVOKED, CONSENT_GRANTED, ...)
-    #[serde(alias = "eventType")] pub event_type: String,
+    #[serde(alias = "eventType")]
+    pub event_type: String,
     /// CONSENT | FRAUD | MAINTENANCE | NEW_DATA | SECURITY | TOKENIZED_ACCOUNT_NUMBER
     pub category: String,
-    #[serde(alias = "callbackUrl")] pub callback_url: String,
-    #[serde(default)] pub subscriber: JsonValue,
+    #[serde(alias = "callbackUrl")]
+    pub callback_url: String,
+    #[serde(default)]
+    pub subscriber: JsonValue,
 }
 
 /// Validate an FDX EventType + NotificationCategory pair (spec enums).
 pub fn validate_subscription_type(event_type: &str, category: &str) -> Result<(), String> {
     const EVENT_TYPES: &[&str] = &[
-        "ACCOUNT_TAKEOVER", "ADDRESS_CHANGED", "BALANCE",
-        "CONSENT_EXPIRED", "CONSENT_GRANTED", "CONSENT_REVOKED",
-        "CONSENT_UPDATED", "CUSTOM", "MFA_TARGET_CHANGED",
-        "PHONE_CHANGED", "PLANNED_OUTAGE", "RISK", "SERVICE",
-        "SUSPECTED_INCIDENT", "TAN_ACTIVATED", "TAN_CREATED",
+        "ACCOUNT_TAKEOVER",
+        "ADDRESS_CHANGED",
+        "BALANCE",
+        "CONSENT_EXPIRED",
+        "CONSENT_GRANTED",
+        "CONSENT_REVOKED",
+        "CONSENT_UPDATED",
+        "CUSTOM",
+        "MFA_TARGET_CHANGED",
+        "PHONE_CHANGED",
+        "PLANNED_OUTAGE",
+        "RISK",
+        "SERVICE",
+        "SUSPECTED_INCIDENT",
+        "TAN_ACTIVATED",
+        "TAN_CREATED",
     ];
     const CATEGORIES: &[&str] = &[
-        "CONSENT", "FRAUD", "MAINTENANCE", "NEW_DATA", "SECURITY",
+        "CONSENT",
+        "FRAUD",
+        "MAINTENANCE",
+        "NEW_DATA",
+        "SECURITY",
         "TOKENIZED_ACCOUNT_NUMBER",
     ];
     if !EVENT_TYPES.contains(&event_type) {
@@ -76,9 +94,11 @@ pub async fn create_notification_subscription(
 ) -> Result<Json<JsonValue>, Response> {
     let a = middleware::provider_authz(&state, &headers, None).await?;
     validate_subscription_type(&req.event_type, &req.category)
-        .map_err(|e| FdxErrorResponse::bad_request(e))?;
+        .map_err(FdxErrorResponse::bad_request)?;
     if !is_https_url_valid(&req.callback_url) {
-        return Err(FdxErrorResponse::bad_request("callbackUrl must be an https URL").into_response());
+        return Err(
+            FdxErrorResponse::bad_request("callbackUrl must be an https URL").into_response(),
+        );
     }
     // Same-transaction discipline (fdx DESIGN.md §5) — see start_consent.
     let mut conn = state.pool.begin().await.map_err(db_err)?;
@@ -103,7 +123,13 @@ pub async fn create_notification_subscription(
     .map_err(db_err)?;
     let id: Uuid = row.get("id");
     conn.commit().await.map_err(db_err)?;
-    emit_event(&state.pool, a.env_id(), "bank8:fdx:notificationsubscription:created", serde_json::json!({ "subscription_id": id })).await;
+    emit_event(
+        &state.pool,
+        a.env_id(),
+        "bank8:fdx:notificationsubscription:created",
+        serde_json::json!({ "subscription_id": id }),
+    )
+    .await;
     Ok(Json(serde_json::json!({
         "subscriptionId": id,
         "type": row.get::<String, _>("event_type"),
@@ -116,12 +142,15 @@ pub async fn create_notification_subscription(
 
 /// Store the subscription signing secret in the local secrets store
 /// (sentin8-secrets:// reference scheme; tokens.rs file-backed vault).
-async fn store_subscription_secret(_state: &AppState, env_id: Uuid, secret: &str) -> Result<String, FdxErrorResponse> {
+async fn store_subscription_secret(
+    _state: &AppState,
+    env_id: Uuid,
+    secret: &str,
+) -> Result<String, FdxErrorResponse> {
     let store = crate::tokens::LocalFileSecrets::from_env();
     let path = format!("subscriptions/{env_id}/{}", Uuid::new_v4());
     store
         .store(&path, secret.as_bytes())
-        .map(|reference| reference)
         .map_err(|e| FdxErrorResponse::internal(format!("secret store: {e}")))
 }
 
@@ -157,7 +186,9 @@ pub async fn list_notification_subscriptions(
             })
         })
         .collect();
-    Ok(Json(serde_json::json!({ "notificationSubscriptions": subs })))
+    Ok(Json(
+        serde_json::json!({ "notificationSubscriptions": subs }),
+    ))
 }
 
 /// `GET /fdx/v6/notification-subscriptions/{subscriptionId}` — detail.
@@ -174,7 +205,8 @@ pub async fn get_notification_subscription(
         r#"SELECT id, event_type, category, callback_url, subscriber, status, created_at
              FROM notification_subscriptions WHERE id = $1 AND env_id = $2"#,
     )
-    .bind(sub_id).bind(a.env_id())
+    .bind(sub_id)
+    .bind(a.env_id())
     .fetch_optional(&mut *conn)
     .await
     .map_err(db_err)?
@@ -210,21 +242,36 @@ pub async fn delete_notification_subscription(
     .map_err(db_err)?
     .rows_affected();
     if updated == 0 {
-        return Err(FdxErrorResponse::new(404, "1107", "Data not found for request parameters").into_response());
+        return Err(
+            FdxErrorResponse::new(404, "1107", "Data not found for request parameters")
+                .into_response(),
+        );
     }
     conn.commit().await.map_err(db_err)?;
-    emit_event(&state.pool, a.env_id(), "bank8:fdx:notificationsubscription:deleted", serde_json::json!({ "subscription_id": sub_id })).await;
+    emit_event(
+        &state.pool,
+        a.env_id(),
+        "bank8:fdx:notificationsubscription:deleted",
+        serde_json::json!({ "subscription_id": sub_id }),
+    )
+    .await;
     Ok(StatusCode::NO_CONTENT)
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct PublishNotificationRequest {
-    #[serde(alias = "notificationId", default)] pub notification_id: Option<String>,
-    #[serde(alias = "type")] pub notification_type: String,
-    #[serde(default)] pub category: Option<String>,
-    #[serde(default)] pub severity: Option<String>,
-    #[serde(default)] pub priority: Option<String>,
-    #[serde(default)] pub payload: JsonValue,
+    #[serde(alias = "notificationId", default)]
+    pub notification_id: Option<String>,
+    #[serde(alias = "type")]
+    pub notification_type: String,
+    #[serde(default)]
+    pub category: Option<String>,
+    #[serde(default)]
+    pub severity: Option<String>,
+    #[serde(default)]
+    pub priority: Option<String>,
+    #[serde(default)]
+    pub payload: JsonValue,
 }
 
 /// `POST /fdx/v6/notifications` — inbound notification ingest (
@@ -313,12 +360,17 @@ pub async fn list_notifications_feed(
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct FeedQuery {
-    #[serde(default)] pub notification_type: Option<String>,
+    #[serde(default)]
+    pub notification_type: Option<String>,
 }
 
 /// Queue a CONSENT_REVOKED notification for every active subscription
 /// (called from `consent_records.rs` on consent revocation — , §5.1a).
-pub(crate) async fn queue_consent_revoked_notification(state: &AppState, env_id: Uuid, consent_id: Uuid) {
+pub(crate) async fn queue_consent_revoked_notification(
+    state: &AppState,
+    env_id: Uuid,
+    consent_id: Uuid,
+) {
     // Same-transaction discipline (fdx DESIGN.md §5) — subscription lookup
     // + notification queueing share one tx with the context set.
     let Ok(mut conn) = state.pool.begin().await else {
@@ -355,7 +407,12 @@ pub(crate) async fn queue_consent_revoked_notification(state: &AppState, env_id:
 /// the signature is HMAC-SHA256(secret, body) formatted as `sha256=<hex>`
 /// the same scheme Sentin8:Auth's webhook relay uses, so recipients verify
 /// once for both carriers.
-pub fn delivery_body(notification_id: Uuid, notification_type: &str, payload: &JsonValue, sent_on: chrono::DateTime<chrono::Utc>) -> Vec<u8> {
+pub fn delivery_body(
+    notification_id: Uuid,
+    notification_type: &str,
+    payload: &JsonValue,
+    sent_on: chrono::DateTime<chrono::Utc>,
+) -> Vec<u8> {
     serde_json::to_vec(&serde_json::json!({
         "notificationId": notification_id,
         "type": notification_type,
@@ -447,17 +504,21 @@ async fn delivery_tick(state: &AppState, http: &reqwest::Client) -> Result<(), S
     .map_err(|e| format!("claim notifications: {e}"))?;
 
     for (notification_id, _sub_id, callback_url, notification_type, payload, attempts) in rows {
-        let body = delivery_body(notification_id, &notification_type, &payload, chrono::Utc::now());
+        let body = delivery_body(
+            notification_id,
+            &notification_type,
+            &payload,
+            chrono::Utc::now(),
+        );
         // Resolve the per-subscription secret by reference (never plaintext
         // in DB — AGENTS.md secret-references rule).
-        let secret_ref: Option<String> = sqlx::query_scalar(
-            "SELECT secret_ref FROM notification_subscriptions WHERE id = $1",
-        )
-        .bind(_sub_id)
-        .fetch_optional(&state.pool)
-        .await
-        .ok()
-        .flatten();
+        let secret_ref: Option<String> =
+            sqlx::query_scalar("SELECT secret_ref FROM notification_subscriptions WHERE id = $1")
+                .bind(_sub_id)
+                .fetch_optional(&state.pool)
+                .await
+                .ok()
+                .flatten();
         let signature = secret_ref
             .as_deref()
             .and_then(|r| load_subscription_secret(state, r))
@@ -539,7 +600,10 @@ mod tests {
     #[test]
     fn callback_url_https_only() {
         assert!(is_https_url_valid("https://recipient.example.com/cb"));
-        assert!(!is_https_url_valid("http://recipient.example.com/cb"), "plain http rejected (FAPI)");
+        assert!(
+            !is_https_url_valid("http://recipient.example.com/cb"),
+            "plain http rejected (FAPI)"
+        );
         assert!(!is_https_url_valid("https://"), "bare host rejected");
         assert!(!is_https_url_valid("ftp://x.example.com"));
         assert!(!is_https_url_valid(""));
@@ -550,7 +614,12 @@ mod tests {
     #[test]
     fn delivery_body_shape() {
         let id = Uuid::new_v4();
-        let body = delivery_body(id, "CONSENT_REVOKED", &serde_json::json!({"consent_id": "abc"}), chrono::Utc::now());
+        let body = delivery_body(
+            id,
+            "CONSENT_REVOKED",
+            &serde_json::json!({"consent_id": "abc"}),
+            chrono::Utc::now(),
+        );
         let parsed: JsonValue = serde_json::from_slice(&body).unwrap();
         assert_eq!(parsed["notificationId"], id.to_string());
         assert_eq!(parsed["type"], "CONSENT_REVOKED");

@@ -25,14 +25,21 @@ use crate::middleware;
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct CreatePipPartyRequest {
-    #[serde(alias = "partyName")] pub party_name: String,
+    #[serde(alias = "partyName")]
+    pub party_name: String,
     /// MERCHANT | INDIVIDUAL | VENDOR | DATA_RECIPIENT
-    #[serde(default = "default_pip_type")] pub party_type: String,
-    #[serde(default)] pub contact: JsonValue,
-    #[serde(default)] pub registry: Option<String>,
-    #[serde(default)] pub registered_id: Option<String>,
+    #[serde(default = "default_pip_type")]
+    pub party_type: String,
+    #[serde(default)]
+    pub contact: JsonValue,
+    #[serde(default)]
+    pub registry: Option<String>,
+    #[serde(default)]
+    pub registered_id: Option<String>,
 }
-fn default_pip_type() -> String { "MERCHANT".into() }
+fn default_pip_type() -> String {
+    "MERCHANT".into()
+}
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct PipPartyResponse {
@@ -70,7 +77,13 @@ pub async fn create_pip_party(
     .map_err(db_err)?;
     let id: Uuid = row.get("id");
     conn.commit().await.map_err(db_err)?;
-    emit_event(&state.pool, a.env_id(), "bank8:fdx:paymentinitiationparty:created", serde_json::json!({ "party_id": id })).await;
+    emit_event(
+        &state.pool,
+        a.env_id(),
+        "bank8:fdx:paymentinitiationparty:created",
+        serde_json::json!({ "party_id": id }),
+    )
+    .await;
     Ok(Json(PipPartyResponse {
         payment_initiation_party_id: id,
         party_name: row.get("party_name"),
@@ -87,7 +100,8 @@ pub async fn get_pip_party(
     headers: HeaderMap,
     Path(party_id): Path<Uuid>,
 ) -> Result<Json<JsonValue>, Response> {
-    let _a = middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
+    let _a =
+        middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
     // Same-transaction discipline (fdx DESIGN.md §5) — see start_consent.
     let mut conn = state.pool.begin().await.map_err(db_err)?;
     set_tenant_context(&mut conn, _a.env_id()).await;
@@ -115,8 +129,10 @@ pub async fn get_pip_party(
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct CreatePipPaymentMethodRequest {
     /// e.g. US_ACH | US_RTP | CARD
-    #[serde(alias = "methodType")] pub method_type: String,
-    #[serde(default)] pub instrument: JsonValue,
+    #[serde(alias = "methodType")]
+    pub method_type: String,
+    #[serde(default)]
+    pub instrument: JsonValue,
 }
 
 /// `POST /fdx/v6/payment-initiation-parties/{partyId}/payment-methods`
@@ -136,7 +152,10 @@ pub async fn create_pip_payment_method(
            VALUES ($1, $2, $3, $4)
            RETURNING id"#,
     )
-    .bind(a.env_id()).bind(party_id).bind(&req.method_type).bind(&req.instrument)
+    .bind(a.env_id())
+    .bind(party_id)
+    .bind(&req.method_type)
+    .bind(&req.instrument)
     .fetch_one(&mut *conn)
     .await
     .map_err(db_err)?;
@@ -168,8 +187,13 @@ pub async fn revoke_pip_payment_method(
     .map_err(db_err)?
     .rows_affected();
     if updated == 0 {
-        return Err(FdxErrorResponse::new(404, "1107", "Data not found for request parameters").into_response());
+        return Err(
+            FdxErrorResponse::new(404, "1107", "Data not found for request parameters")
+                .into_response(),
+        );
     }
     conn.commit().await.map_err(db_err)?;
-    Ok(Json(serde_json::json!({ "paymentMethodRegistrationId": reg_id, "status": "revoked" })))
+    Ok(Json(
+        serde_json::json!({ "paymentMethodRegistrationId": reg_id, "status": "revoked" }),
+    ))
 }

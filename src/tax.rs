@@ -68,7 +68,12 @@ mod tests {
 
     #[test]
     fn test_tax_form_serialization() {
-        let f = TaxForm { form_id: Uuid::new_v4(), form_type: "1099-INT".into(), tax_year: 2025, data: serde_json::json!({}) };
+        let f = TaxForm {
+            form_id: Uuid::new_v4(),
+            form_type: "1099-INT".into(),
+            tax_year: 2025,
+            data: serde_json::json!({}),
+        };
         let json = serde_json::to_string(&f).unwrap();
         assert!(json.contains("1099-INT"));
         assert!(json.contains("2025"));

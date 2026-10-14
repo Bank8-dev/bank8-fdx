@@ -10,13 +10,12 @@
 //! `lib.rs` re-exports every module) — no `#[path]` includes needed.
 
 use bank8_fdx_server::{
-    csdf, errors, flow, headers, middleware, notifications,
-    tax, tokens, validation,
+    csdf, errors, flow, headers, middleware, notifications, tax, tokens, validation,
 };
 
-use uuid::Uuid;
 use axum::response::IntoResponse;
 use csdf::{CsdfFilter, DataCluster};
+use uuid::Uuid;
 
 // ── Provider API route validation ───────────────────────────────────────
 
@@ -34,13 +33,23 @@ fn integration_provider_account_detail_route_valid() {
 #[test]
 fn integration_provider_statements_route_valid() {
     let id = Uuid::new_v4();
-    assert!(validation::validate_fdx_request("GET", &format!("/fdx/v6/accounts/{id}/statements"), "").is_ok());
+    assert!(validation::validate_fdx_request(
+        "GET",
+        &format!("/fdx/v6/accounts/{id}/statements"),
+        ""
+    )
+    .is_ok());
 }
 
 #[test]
 fn integration_provider_payment_networks_route_valid() {
     let id = Uuid::new_v4();
-    assert!(validation::validate_fdx_request("GET", &format!("/fdx/v6/accounts/{id}/payment-networks"), "").is_ok());
+    assert!(validation::validate_fdx_request(
+        "GET",
+        &format!("/fdx/v6/accounts/{id}/payment-networks"),
+        ""
+    )
+    .is_ok());
 }
 
 #[test]
@@ -87,7 +96,10 @@ fn integration_recipient_consent_start_creates_id() {
 fn integration_recipient_consent_revoke_via_scope_check() {
     // After revocation, the scope no longer grants access.
     assert!(!csdf::check_consent_scope("", "transactions"));
-    assert!(csdf::check_consent_scope("bank8:fdx:transactions:read", "transactions"));
+    assert!(csdf::check_consent_scope(
+        "bank8:fdx:transactions:read",
+        "transactions"
+    ));
 }
 
 // ── Consent enforcement via CSDF minimisation ───────────────────────────
@@ -104,8 +116,14 @@ fn integration_csdf_minimization_removes_unauthorized_data() {
     let filter = csdf::CsdfFilter::new(vec!["bank8:fdx:accountbasic:read".into()]);
     let out = csdf::minimize_csdf(&data, &filter);
     assert!(out.get("accounts").is_some(), "accounts should be present");
-    assert!(out.get("transactions").is_none(), "transactions should be removed");
-    assert!(out.get("statements").is_none(), "statements should be removed");
+    assert!(
+        out.get("transactions").is_none(),
+        "transactions should be removed"
+    );
+    assert!(
+        out.get("statements").is_none(),
+        "statements should be removed"
+    );
     assert!(out.get("customer").is_none(), "customer should be removed");
 }
 
@@ -122,7 +140,10 @@ fn integration_csdf_field_filter_restricts_to_whitelist() {
     let out = csdf::minimize_csdf(&data, &filter);
     assert_eq!(out["accounts"][0]["id"], "a1");
     assert_eq!(out["accounts"][0]["balance"], "1000");
-    assert!(out["accounts"][0].get("ssn").is_none(), "SSN must be filtered out");
+    assert!(
+        out["accounts"][0].get("ssn").is_none(),
+        "SSN must be filtered out"
+    );
 }
 
 #[test]
@@ -152,10 +173,16 @@ fn integration_csdf_full_scope_keeps_all() {
 fn integration_fdx_headers_round_trip() {
     use axum::http::{HeaderMap, HeaderName, HeaderValue};
     let mut req = HeaderMap::new();
-    req.insert(HeaderName::from_static("x-fapi-interaction-id"), HeaderValue::from_static("int-001"));
+    req.insert(
+        HeaderName::from_static("x-fapi-interaction-id"),
+        HeaderValue::from_static("int-001"),
+    );
     let mut resp = HeaderMap::new();
     headers::inject_interaction_id(&req, &mut resp);
-    assert_eq!(resp.get("x-fapi-interaction-id").unwrap().to_str().unwrap(), "int-001");
+    assert_eq!(
+        resp.get("x-fapi-interaction-id").unwrap().to_str().unwrap(),
+        "int-001"
+    );
 }
 
 // ── FDX error responses ─────────────────────────────────────────────────
@@ -213,7 +240,12 @@ async fn integration_tax_get_forms_returns_empty() {
 
 #[tokio::test]
 async fn integration_notifications_publish_success() {
-    let r = notifications::publish_notification(Uuid::new_v4(), "account.closed".into(), serde_json::json!({})).await;
+    let r = notifications::publish_notification(
+        Uuid::new_v4(),
+        "account.closed".into(),
+        serde_json::json!({}),
+    )
+    .await;
     assert!(r.is_ok());
 }
 
@@ -249,12 +281,18 @@ fn integration_middleware_audit_route_name_shapes_uuid_segments() {
         middleware::audit_route_name(&format!("/fdx/v6/accounts/{id}/transactions")),
         "/fdx/v6/accounts/{accountId}/transactions"
     );
-    assert_eq!(middleware::audit_route_name("/fdx/v6/accounts"), "/fdx/v6/accounts");
+    assert_eq!(
+        middleware::audit_route_name("/fdx/v6/accounts"),
+        "/fdx/v6/accounts"
+    );
 }
 
 #[test]
 fn integration_middleware_consent_enforcement_in_scope() {
-    let filter = CsdfFilter::new(vec!["bank8:fdx:accountbasic:read".into(), "bank8:fdx:transactions:read".into()]);
+    let filter = CsdfFilter::new(vec![
+        "bank8:fdx:accountbasic:read".into(),
+        "bank8:fdx:transactions:read".into(),
+    ]);
     assert!(middleware::enforce_consent(&filter, Some(DataCluster::Accounts)).is_ok());
     assert!(middleware::enforce_consent(&filter, Some(DataCluster::Transactions)).is_ok());
     assert!(middleware::enforce_consent(&filter, None).is_ok());
@@ -302,7 +340,12 @@ fn integration_provider_fdx_consent_introspection_route_valid() {
 #[test]
 fn integration_provider_fdx_consent_revocation_route_valid() {
     let id = Uuid::new_v4();
-    assert!(validation::validate_fdx_request("PUT", &format!("/fdx/v6/consents/{id}/revocation"), "").is_ok());
+    assert!(validation::validate_fdx_request(
+        "PUT",
+        &format!("/fdx/v6/consents/{id}/revocation"),
+        ""
+    )
+    .is_ok());
 }
 
 // ── Secret-reference token storage (.3) ────────────────────────────
@@ -331,8 +374,10 @@ async fn integration_tokens_rotation_overwrites_same_path() {
     let path = tokens::refresh_token_path(Uuid::new_v4());
     secrets.store(&path, b"refresh-v1").unwrap();
     secrets.store(&path, b"refresh-v2").unwrap();
-    let parsed = sentin8_secrets_sdk::secrets::SecretRef::parse(&sentin8_secrets_sdk::secrets::SecretRef::new("sentin8-secrets", &path).to_uri())
-        .unwrap();
+    let parsed = sentin8_secrets_sdk::secrets::SecretRef::parse(
+        &sentin8_secrets_sdk::secrets::SecretRef::new("sentin8-secrets", &path).to_uri(),
+    )
+    .unwrap();
     let value = sentin8_secrets_sdk::secrets::SecretResolver::resolve(&secrets, &parsed)
         .await
         .unwrap();
@@ -355,7 +400,12 @@ fn integration_headers_interaction_id_generated_when_absent() {
     let resp = errors::FdxErrorResponse::bad_request("x").into_response();
     let mut resp = resp;
     headers::inject_interaction_id(&HeaderMap::new(), resp.headers_mut());
-    let val = resp.headers().get("x-fapi-interaction-id").unwrap().to_str().unwrap();
+    let val = resp
+        .headers()
+        .get("x-fapi-interaction-id")
+        .unwrap()
+        .to_str()
+        .unwrap();
     assert!(Uuid::parse_str(val).is_ok());
     let _ = StatusCode::OK; // silence unused-import in this scope
 }
@@ -372,7 +422,11 @@ fn integration_headers_interaction_id_echoed_when_present() {
     let mut resp = resp;
     headers::inject_interaction_id(&req, resp.headers_mut());
     assert_eq!(
-        resp.headers().get("x-fapi-interaction-id").unwrap().to_str().unwrap(),
+        resp.headers()
+            .get("x-fapi-interaction-id")
+            .unwrap()
+            .to_str()
+            .unwrap(),
         "req-echo-42"
     );
 }

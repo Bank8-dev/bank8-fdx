@@ -46,9 +46,8 @@ impl LocalFileSecrets {
     pub fn store(&self, path: &str, value: &[u8]) -> Result<String, SecretError> {
         let full = self.path_for(path);
         if let Some(parent) = full.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| {
-                SecretError::InvalidRef(format!("mkdir {}: {e}", parent.display()))
-            })?;
+            std::fs::create_dir_all(parent)
+                .map_err(|e| SecretError::InvalidRef(format!("mkdir {}: {e}", parent.display())))?;
         }
         std::fs::write(&full, value)
             .map_err(|e| SecretError::InvalidRef(format!("write {}: {e}", full.display())))?;
@@ -61,7 +60,13 @@ impl SecretResolver for LocalFileSecrets {
     fn resolve<'life0, 'life1, 'async_trait>(
         &'life0 self,
         reference: &'life1 SecretRef,
-    ) -> ::core::pin::Pin<Box<dyn ::core::future::Future<Output = Result<SecretValue, SecretError>> + ::core::marker::Send + 'async_trait>>
+    ) -> ::core::pin::Pin<
+        Box<
+            dyn ::core::future::Future<Output = Result<SecretValue, SecretError>>
+                + ::core::marker::Send
+                + 'async_trait,
+        >,
+    >
     where
         'life0: 'async_trait,
         'life1: 'async_trait,
@@ -69,9 +74,8 @@ impl SecretResolver for LocalFileSecrets {
     {
         Box::pin(async move {
             let path = self.path_for(&reference.path);
-            let bytes = std::fs::read(&path).map_err(|e| {
-                SecretError::InvalidRef(format!("read {}: {e}", path.display()))
-            })?;
+            let bytes = std::fs::read(&path)
+                .map_err(|e| SecretError::InvalidRef(format!("read {}: {e}", path.display())))?;
             Ok(SecretValue::new(bytes))
         })
     }
@@ -166,11 +170,12 @@ pub async fn load_provider_refresh_token(
     conn: &mut sqlx::PgConnection,
     consent_id: Uuid,
 ) -> Result<Option<String>, String> {
-    let row = sqlx::query("SELECT provider_refresh_token_ref FROM recipient_consents WHERE id = $1")
-        .bind(consent_id)
-        .fetch_optional(&mut *conn)
-        .await
-        .map_err(|e| format!("load refresh ref: {e}"))?;
+    let row =
+        sqlx::query("SELECT provider_refresh_token_ref FROM recipient_consents WHERE id = $1")
+            .bind(consent_id)
+            .fetch_optional(&mut *conn)
+            .await
+            .map_err(|e| format!("load refresh ref: {e}"))?;
     let Some(row) = row else {
         return Ok(None);
     };
@@ -256,7 +261,10 @@ mod tests {
         secrets.store(path, b"old").unwrap();
         secrets.store(path, b"new").unwrap();
         let r = SecretRef::parse(&SecretRef::new(BACKEND, path).to_uri()).unwrap();
-        assert_eq!(secrets.resolve(&r).await.unwrap().into_string().unwrap(), "new");
+        assert_eq!(
+            secrets.resolve(&r).await.unwrap().into_string().unwrap(),
+            "new"
+        );
     }
 
     #[tokio::test]

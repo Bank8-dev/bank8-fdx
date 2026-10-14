@@ -50,7 +50,9 @@ pub async fn auth_consent_ui(
     let _a = auth::verify_token(&state.config, &headers).await?;
 
     let scopes = q.scopes.unwrap_or_default();
-    let client_name = q.client_name.unwrap_or_else(|| q.client_id.unwrap_or_else(|| "An application".into()));
+    let client_name = q
+        .client_name
+        .unwrap_or_else(|| q.client_id.unwrap_or_else(|| "An application".into()));
 
     // Build scope descriptions for FDX scopes.
     let scope_list: Vec<serde_json::Value> = scopes
@@ -140,23 +142,33 @@ pub async fn auth_consent_accounts(
     // Fetch accounts from Bank8:Ledger over the certificate-presenting
     // proxy transport (CERTFREE-8V — the `bank8-fdx-ledger` workload
     // presents in the TLS handshake; no static token).
-    let http = state
-        .config
-        .ledger_http()
-        .cloned()
-        .ok_or((StatusCode::BAD_GATEWAY, "ledger proxy transport absent (workload certificate not provisioned)".to_string()))?;
+    let http = state.config.ledger_http().cloned().ok_or((
+        StatusCode::BAD_GATEWAY,
+        "ledger proxy transport absent (workload certificate not provisioned)".to_string(),
+    ))?;
     let resp = http
         .get(format!("{}/v1/accounts", state.config.ledger_url))
         .header("X-Sentin8-Env-Id", env_id.to_string())
         .send()
         .await
-        .map_err(|e| (StatusCode::BAD_GATEWAY, format!("ledger accounts fetch: {e}")))?;
+        .map_err(|e| {
+            (
+                StatusCode::BAD_GATEWAY,
+                format!("ledger accounts fetch: {e}"),
+            )
+        })?;
 
     if !resp.status().is_success() {
-        return Err((StatusCode::BAD_GATEWAY, format!("ledger accounts: status {}", resp.status())));
+        return Err((
+            StatusCode::BAD_GATEWAY,
+            format!("ledger accounts: status {}", resp.status()),
+        ));
     }
 
-    let body: serde_json::Value = resp.json().await.map_err(|e| (StatusCode::BAD_GATEWAY, e.to_string()))?;
+    let body: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| (StatusCode::BAD_GATEWAY, e.to_string()))?;
 
     // Normalize to the format the RFW account_selection widget expects.
     let accounts = if let Some(arr) = body.get("accounts").and_then(|v| v.as_array()) {
@@ -172,11 +184,30 @@ pub async fn auth_consent_accounts(
     let normalized: Vec<serde_json::Value> = accounts
         .iter()
         .map(|a| {
-            let id = a["id"].as_str().or(a["accountId"].as_str()).unwrap_or("").to_string();
-            let name = a["nickname"].as_str().or(a["name"].as_str()).unwrap_or("Account").to_string();
-            let account_type = a["accountType"].as_str().or(a["account_type"].as_str()).unwrap_or("").to_string();
-            let masked = a["accountNumberDisplay"].as_str().or(a["maskedAccountNumber"].as_str()).unwrap_or("").to_string();
-            let balance = a["currentBalance"].as_f64().or(a["balance"].as_f64()).unwrap_or(0.0);
+            let id = a["id"]
+                .as_str()
+                .or(a["accountId"].as_str())
+                .unwrap_or("")
+                .to_string();
+            let name = a["nickname"]
+                .as_str()
+                .or(a["name"].as_str())
+                .unwrap_or("Account")
+                .to_string();
+            let account_type = a["accountType"]
+                .as_str()
+                .or(a["account_type"].as_str())
+                .unwrap_or("")
+                .to_string();
+            let masked = a["accountNumberDisplay"]
+                .as_str()
+                .or(a["maskedAccountNumber"].as_str())
+                .unwrap_or("")
+                .to_string();
+            let balance = a["currentBalance"]
+                .as_f64()
+                .or(a["balance"].as_f64())
+                .unwrap_or(0.0);
             serde_json::json!({
                 "id": id,
                 "name": name,
@@ -259,7 +290,10 @@ fn fdx_scope_description(scope: &str) -> (String, &'static str) {
     } else if scope.contains(":fdx:accountbasic:read") {
         ("Read your basic account information".into(), "0xe85a")
     } else if scope.contains(":fdx:accountdetailed:read") {
-        ("Read detailed account data (balances, numbers)".into(), "0xe85a")
+        (
+            "Read detailed account data (balances, numbers)".into(),
+            "0xe85a",
+        )
     } else if scope.contains(":fdx:transactions:read") {
         ("Read your transaction history".into(), "0xe88f")
     } else if scope.contains(":fdx:payments:read") {
