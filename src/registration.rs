@@ -29,12 +29,15 @@ const PG_ROLES: &[PgRole] = &[PgRole {
 /// use the full vocabulary form (bare forms + missing grants fail-closed
 /// every bus/policy/stat DCR).
 /// - `bank8:fdx` — the service's own client (fdx/src/server.rs): bus
+///
 /// produce/consume (env-init `sentin8:sys:service:updated` consumer +
 /// notifications).
 /// - `bank8:fdx-policy` — Shield hot-reload consumer
+///
 /// (policy_bus_client, full colon identity).
 /// - `fdx-policy` — Shield stat emitter (stat_emit short form).
 /// - `fdx-audit` — shell audit-journal pusher workload (audit crate
+///
 /// §6.8; boot step 8c).
 const M2M_GRANTS: &[M2mGrant] = &[
     M2mGrant {
