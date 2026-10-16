@@ -2,7 +2,11 @@
   "vertical": "bank8",
   "services": [
     {
-      "service_type": "bank8:fdx"
+      "service_type": "bank8:fdx",
+      "telemetry_property": {
+        "slug": "fdx",
+        "name": "Bank8:FDX Telemetry"
+      }
     }
   ]
 }
