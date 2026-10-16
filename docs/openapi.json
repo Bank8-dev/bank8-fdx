@@ -1,0 +1,870 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "bank8-fdx",
+    "description": "Sentin8 Bank8:FDX — open banking, FDX v6.5 provider/recipient.",
+    "license": {
+      "name": "MIT OR Apache-2.0",
+      "identifier": "MIT OR Apache-2.0"
+    },
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/v1/admin/audit": {
+      "get": {
+        "tags": [
+          "fdx"
+        ],
+        "summary": "`GET /v1/admin/audit` — audit trail (admin).",
+        "operationId": "list_admin_audit",
+        "responses": {
+          "200": {
+            "description": "List of audit entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {}
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing fdx:admin scope"
+          }
+        },
+        "security": [
+          {
+            "fdx:admin": []
+          }
+        ]
+      }
+    },
+    "/v1/admin/consents": {
+      "get": {
+        "tags": [
+          "fdx"
+        ],
+        "summary": "`GET /v1/admin/consents` — consent overview (admin).",
+        "operationId": "list_all_consents",
+        "parameters": [
+          {
+            "name": "customer_id",
+            "in": "query",
+            "description": "Filter by customer",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of all consents",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConsentResponse"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing fdx:admin scope"
+          }
+        },
+        "security": [
+          {
+            "fdx:admin": []
+          }
+        ]
+      }
+    },
+    "/v1/admin/provider-profile": {
+      "get": {
+        "tags": [
+          "fdx"
+        ],
+        "summary": "`GET /v1/admin/provider-profile` — get provider profile.",
+        "operationId": "get_provider_profile",
+        "responses": {
+          "200": {
+            "description": "Provider profile",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "403": {
+            "description": "Missing fdx:admin scope"
+          }
+        },
+        "security": [
+          {
+            "fdx:admin": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "fdx"
+        ],
+        "summary": "`PUT /v1/admin/provider-profile` — update provider profile.",
+        "operationId": "update_provider_profile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProviderProfileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Provider profile updated",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "403": {
+            "description": "Missing fdx:admin scope"
+          }
+        },
+        "security": [
+          {
+            "fdx:admin": []
+          }
+        ]
+      }
+    },
+    "/v1/admin/recipients": {
+      "get": {
+        "tags": [
+          "fdx"
+        ],
+        "summary": "`GET /v1/admin/recipients` — list registered data recipients.",
+        "operationId": "list_recipients",
+        "responses": {
+          "200": {
+            "description": "List of recipients",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {}
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing fdx:admin scope"
+          }
+        },
+        "security": [
+          {
+            "fdx:admin": []
+          }
+        ]
+      }
+    },
+    "/v1/admin/recipients/{id}/activate": {
+      "post": {
+        "tags": [
+          "fdx"
+        ],
+        "summary": "`POST /v1/admin/recipients/{id}/activate` — activate a data recipient.",
+        "operationId": "activate_recipient",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Recipient ID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recipient activated",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "403": {
+            "description": "Missing fdx:admin scope"
+          },
+          "404": {
+            "description": "Recipient not found"
+          }
+        },
+        "security": [
+          {
+            "fdx:admin": []
+          }
+        ]
+      }
+    },
+    "/v1/admin/recipients/{id}/suspend": {
+      "post": {
+        "tags": [
+          "fdx"
+        ],
+        "summary": "`POST /v1/admin/recipients/{id}/suspend` — suspend a data recipient.",
+        "operationId": "suspend_recipient",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Recipient ID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recipient suspended",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "403": {
+            "description": "Missing fdx:admin scope"
+          },
+          "404": {
+            "description": "Recipient not found"
+          }
+        },
+        "security": [
+          {
+            "fdx:admin": []
+          }
+        ]
+      }
+    },
+    "/v1/recipient/consents": {
+      "get": {
+        "tags": [
+          "fdx"
+        ],
+        "summary": "`GET /v1/recipient/consents` — list active consents for the recipient.\nReturns `{\"consents\": [...]}` (wrapped) so the eFintech app's\nFdxConsentsHook can parse `response.data['consents']`.",
+        "operationId": "list_recipient_consents",
+        "parameters": [
+          {
+            "name": "customer_id",
+            "in": "query",
+            "description": "Filter by customer",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of recipient consents",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "403": {
+            "description": "Missing fdx:read scope"
+          }
+        },
+        "security": [
+          {
+            "fdx:read": []
+          }
+        ]
+      }
+    },
+    "/v1/recipient/consents/start": {
+      "post": {
+        "tags": [
+          "fdx"
+        ],
+        "summary": "`POST /v1/recipient/consents/start` — start consent authorization.\nThe two-ledger recipient flow (fdx DESIGN.md §1 + §4 consent-flow\nsequence): the recipient-side fdx instance writes its OWN registry\n(a `pending` row in `recipient_consents`, in the recipient tenant),\nensures its per-provider OAuth client exists at the provider's\nauthorization server (DCR, cached in `fdx.recipients`), and pushes a\nPAR request whose `state` carries `\"<consent handle>|<app origin>\"`.\nThe AS's authorize screen runs the ceremony; the browser redirect\ncomes back to THIS instance's `/fdx/consents/callback` (the\nregistered redirect_uri), which activates the row and exchanges the\ncode. The provider's grant row is seeded by the provider's OWN\nauth-family consumer from `sentin8:auth:grant:created` — never by\nthis side.",
+        "operationId": "start_consent",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartConsentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Consent started with authorization URL",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "403": {
+            "description": "Missing fdx:read scope"
+          }
+        },
+        "security": [
+          {
+            "fdx:read": []
+          }
+        ]
+      }
+    },
+    "/v1/recipient/consents/{id}": {
+      "get": {
+        "tags": [
+          "fdx"
+        ],
+        "summary": "`GET /v1/recipient/consents/{id}` — get a specific recipient consent.",
+        "operationId": "get_recipient_consent",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Consent ID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recipient consent detail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsentResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing fdx:read scope"
+          },
+          "404": {
+            "description": "Consent not found"
+          }
+        },
+        "security": [
+          {
+            "fdx:read": []
+          }
+        ]
+      }
+    },
+    "/v1/recipient/consents/{id}/refresh": {
+      "post": {
+        "tags": [
+          "fdx"
+        ],
+        "summary": "`POST /v1/recipient/consents/{id}/refresh` — trigger data refresh.",
+        "operationId": "refresh_consent",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Consent ID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Consent refreshed",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "403": {
+            "description": "Missing fdx:read scope"
+          },
+          "404": {
+            "description": "Consent not found"
+          }
+        },
+        "security": [
+          {
+            "fdx:read": []
+          }
+        ]
+      }
+    },
+    "/v1/recipient/consents/{id}/revoke": {
+      "post": {
+        "tags": [
+          "fdx"
+        ],
+        "summary": "`POST /v1/recipient/consents/{id}/revoke` — revoke a recipient consent.",
+        "operationId": "revoke_recipient_consent",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Consent ID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Consent revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsentResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing fdx:read scope"
+          }
+        },
+        "security": [
+          {
+            "fdx:read": []
+          }
+        ]
+      }
+    },
+    "/v1/recipient/providers": {
+      "get": {
+        "tags": [
+          "fdx"
+        ],
+        "summary": "`GET /v1/recipient/providers` — list FDX data providers from the\n`provider_profiles` registry.\nProvider profiles are auto-registered when an environment's\n`is_fdx_provider` flag is turned on (see Sys `update_env`), with the\nenv's auth domain used as the issuer URL. The table has no RLS, so the\ncatalog is visible cross-org — any recipient can discover and connect to\nany active provider. No static seed data is required.\nResponse shape matches the eFintech recipient catalog contract:\n`{ \"providers\": [{ id, name, supportedDataClusters, status, ... }] }`,\nwhere each card reads `name`, `supportedDataClusters`, and `status`.",
+        "operationId": "list_recipient_providers",
+        "responses": {
+          "200": {
+            "description": "List of FDX data providers",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "403": {
+            "description": "Missing fdx:read scope"
+          }
+        },
+        "security": [
+          {
+            "fdx:read": []
+          }
+        ]
+      }
+    },
+    "/v1/recipient/providers/{id}": {
+      "get": {
+        "tags": [
+          "fdx"
+        ],
+        "summary": "`GET /v1/recipient/providers/{id}` — get a specific FDX data provider.",
+        "operationId": "get_recipient_provider",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Provider ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "FDX data provider detail",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "403": {
+            "description": "Missing fdx:read scope"
+          },
+          "404": {
+            "description": "Provider not found"
+          }
+        },
+        "security": [
+          {
+            "fdx:read": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ConsentCallbackQuery": {
+        "type": "object",
+        "description": "Query params for `GET /fdx/consents/callback` — the OAuth callback after\nthe customer approves/denies consent at the provider's Auth.",
+        "properties": {
+          "app_redirect_uri": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The app return URL (passed through from BFF as `app_redirect_uri`)."
+          },
+          "code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The authorization code from Auth."
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "OAuth error if the customer denied."
+          },
+          "selected_account_ids": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Comma-separated list of account IDs the customer selected to share\nduring the provider's consent screen (FDX UX Guidelines §3.1.6).\nPassed through from Auth's authorize/continue as a query param on\nthe redirect_uri."
+          },
+          "state": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The consent_id (passed as OAuth `state` in the PAR request)."
+          }
+        }
+      },
+      "ConsentResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "customer_id",
+          "status",
+          "scopes",
+          "data_clusters",
+          "created_at"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "customer_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "data_clusters": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "duration_days": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "provider_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recipient_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateConsentRequest": {
+        "type": "object",
+        "required": [
+          "customer_id",
+          "scopes",
+          "data_clusters"
+        ],
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "data_clusters": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "duration_days": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "provider_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recipient_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CreatePaymentRequest": {
+        "type": "object",
+        "required": [
+          "account_id",
+          "amount"
+        ],
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "amount": {},
+          "counterparty": {}
+        }
+      },
+      "CreateTransferRequest": {
+        "type": "object",
+        "required": [
+          "from_account_id",
+          "to_account_id",
+          "amount"
+        ],
+        "properties": {
+          "amount": {},
+          "from_account_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "memo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "to_account_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "ListConsentsQuery": {
+        "type": "object",
+        "properties": {
+          "customer_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "ListRecipientAccountsQuery": {
+        "type": "object",
+        "description": "Query params for `GET /v1/recipient/accounts`.",
+        "properties": {
+          "consent_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Optional consent_id to filter accounts to only those the customer\nselected during the consent flow (consent_resources)."
+          }
+        }
+      },
+      "ProxyBackRequest": {
+        "type": "object",
+        "description": "Request body for the Flow proxy-back `POST /v1/internal/steps/execute`.",
+        "required": [
+          "step_kind",
+          "workflow_id",
+          "step_name",
+          "input",
+          "user_data"
+        ],
+        "properties": {
+          "input": {},
+          "step_config": {},
+          "step_kind": {
+            "type": "string"
+          },
+          "step_name": {
+            "type": "string"
+          },
+          "user_data": {},
+          "workflow_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "ProxyBackResponse": {
+        "type": "object",
+        "description": "Response from the proxy-back handler.",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "next_step": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "output": {},
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "StartConsentRequest": {
+        "type": "object",
+        "required": [
+          "customer_id",
+          "provider_id",
+          "scopes"
+        ],
+        "properties": {
+          "app_redirect_uri": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The app frontend URL to redirect back to after consent (passed by\nBFF from the TLS hostname). Encoded into the OAuth `state` so it\nsurvives the PAR/authorize/callback round-trip."
+          },
+          "customer_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "provider_id": {
+            "type": "string"
+          },
+          "redirect_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "UpdateProviderProfileRequest": {
+        "type": "object",
+        "required": [
+          "provider_name",
+          "issuer_url",
+          "fdx_version"
+        ],
+        "properties": {
+          "fdx_version": {
+            "type": "string"
+          },
+          "issuer_url": {
+            "type": "string"
+          },
+          "provider_name": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "security": [],
+  "tags": [
+    {
+      "name": "fdx",
+      "description": "Bank8:FDX — open banking, FDX v6.5 provider/recipient"
+    }
+  ]
+}
