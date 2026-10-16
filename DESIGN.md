@@ -340,7 +340,7 @@ sequenceDiagram
     R->>B: POST /v1/produce (M2M)
     B-->>W: consent event → pending notifications
     W->>W: HMAC-sign + POST to subscription callback URL
-    Note over W: delivery retry with backoff; failures marked
+    Note over AE,W: delivery retry with backoff, failures marked
     Note over R,B: Bus outage → outbox rows retry (≤10)
 ```
 
