@@ -87,6 +87,17 @@ pub fn is_https_url_valid(url: &str) -> bool {
 /// `POST /fdx/v6/notification-subscriptions` — create a subscription
 /// /. The per-subscription HMAC secret is generated here and
 /// stored as a sentin8-secrets:// reference — never plaintext.
+#[utoipa::path(
+    post,
+    path = "/fdx/v6/notification-subscriptions",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn create_notification_subscription(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -155,6 +166,17 @@ async fn store_subscription_secret(
 }
 
 /// `GET /fdx/v6/notification-subscriptions` — list subscriptions.
+#[utoipa::path(
+    get,
+    path = "/fdx/v6/notification-subscriptions",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn list_notification_subscriptions(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -192,6 +214,17 @@ pub async fn list_notification_subscriptions(
 }
 
 /// `GET /fdx/v6/notification-subscriptions/{subscriptionId}` — detail.
+#[utoipa::path(
+    get,
+    path = "/fdx/v6/notification-subscriptions/{subscriptionId}",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn get_notification_subscription(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -224,6 +257,17 @@ pub async fn get_notification_subscription(
 
 /// `DELETE /fdx/v6/notification-subscriptions/{subscriptionId}` — delete a
 /// subscription (; soft delete + release the secret reference).
+#[utoipa::path(
+    delete,
+    path = "/fdx/v6/notification-subscriptions/{subscriptionId}",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn delete_notification_subscription(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -278,6 +322,17 @@ pub struct PublishNotificationRequest {
 /// `fdx:notifications:publish`). Records the notification, queues it for
 /// delivery to matching subscriptions, and emits the Bus event the
 /// delivery consumer reacts to.
+#[utoipa::path(
+    post,
+    path = "/fdx/v6/notifications",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn publish_notification(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -320,6 +375,17 @@ pub async fn publish_notification(
 
 /// `GET /fdx/v6/notifications` — notification feed (polling alternative to
 /// webhook delivery; ).
+#[utoipa::path(
+    get,
+    path = "/fdx/v6/notifications",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn list_notifications_feed(
     State(state): State<AppState>,
     headers: HeaderMap,

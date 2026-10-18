@@ -17,6 +17,17 @@ use sentin8::rfw::widget::*;
 use crate::handlers::AppState;
 
 /// GET /v1/admin/ui/{page} — return RFW definition for the requested admin page.
+#[utoipa::path(
+    get,
+    path = "/v1/admin/ui/{page}",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "admin-ui",
+)]
 pub async fn get_admin_ui(
     State(state): State<AppState>,
     headers: HeaderMap,

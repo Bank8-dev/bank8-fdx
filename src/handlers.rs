@@ -155,6 +155,17 @@ pub struct ConsentResponse {
 }
 
 /// `POST /v1/consents` — create a consent grant.
+#[utoipa::path(
+    post,
+    path = "/v1/consents",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "consent",
+)]
 pub async fn create_consent(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -195,6 +206,17 @@ pub async fn create_consent(
 }
 
 /// `GET /v1/consents` — list consents.
+#[utoipa::path(
+    get,
+    path = "/v1/consents",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "consent",
+)]
 pub async fn list_consents(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -236,6 +258,17 @@ pub struct ListConsentsQuery {
 }
 
 /// `GET /v1/consents/{id}` — consent detail.
+#[utoipa::path(
+    get,
+    path = "/v1/consents/{id}",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "consent",
+)]
 pub async fn get_consent(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -260,6 +293,17 @@ pub async fn get_consent(
 }
 
 /// `POST /v1/consents/{id}/revoke` — revoke a consent.
+#[utoipa::path(
+    post,
+    path = "/v1/consents/{id}/revoke",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "consent",
+)]
 pub async fn revoke_consent(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -300,6 +344,17 @@ pub async fn revoke_consent(
 /// forwarded to Ledger, so RLS scopes the rows to the consenting
 /// customer either way (fdx DESIGN.md §1 — the consent grant keys on the
 /// token subject).
+#[utoipa::path(
+    get,
+    path = "/fdx/v6/accounts",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn get_accounts(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -329,6 +384,17 @@ pub async fn get_accounts(
 }
 
 /// `GET /fdx/v6/accounts/{accountId}` — account detail (proxies to Ledger).
+#[utoipa::path(
+    get,
+    path = "/fdx/v6/accounts/{id}",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn get_account_detail(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -355,6 +421,17 @@ pub async fn get_account_detail(
 
 /// `GET /fdx/v6/accounts/{accountId}/transactions` — transactions (proxies
 /// to Ledger; no hardcoded empty results).
+#[utoipa::path(
+    get,
+    path = "/fdx/v6/accounts/{id}/transactions",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn get_account_transactions(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -382,6 +459,17 @@ pub async fn get_account_transactions(
 // ── FDX consent introspection + revocation (design §5.1) ────────────────
 
 /// `GET /fdx/v6/consents/{consentId}` — consent grant introspection.
+#[utoipa::path(
+    get,
+    path = "/fdx/v6/consents/{id}",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn get_fdx_consent(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -555,6 +643,17 @@ pub async fn list_recipient_providers(
 // ── Provider API  ────────────────────────────────────
 
 /// `GET /fdx/v6/accounts/{accountId}/statements` — list statements (proxy to Ledger).
+#[utoipa::path(
+    get,
+    path = "/fdx/v6/accounts/{id}/statements",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn list_account_statements(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -581,6 +680,17 @@ pub async fn list_account_statements(
 }
 
 /// `GET /fdx/v6/accounts/{accountId}/payment-networks` — payment network info.
+#[utoipa::path(
+    get,
+    path = "/fdx/v6/accounts/{id}/payment-networks",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn get_payment_networks(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -607,6 +717,17 @@ pub async fn get_payment_networks(
 }
 
 /// `GET /fdx/v6/customers` — list customers (proxy to Ledger).
+#[utoipa::path(
+    get,
+    path = "/fdx/v6/customers",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn list_customers(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -629,6 +750,17 @@ pub async fn list_customers(
 }
 
 /// `GET /fdx/v6/customers/current` — current customer (proxy to Ledger).
+#[utoipa::path(
+    get,
+    path = "/fdx/v6/customers/current",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn get_current_customer(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -664,6 +796,17 @@ pub struct CreateTransferRequest {
 }
 
 /// `POST /fdx/v6/transfers` — account transfer initiation (proxy to Payments).
+#[utoipa::path(
+    post,
+    path = "/fdx/v6/transfers",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn create_transfer(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -707,6 +850,17 @@ pub struct CreatePaymentRequest {
 }
 
 /// `POST /fdx/v6/payments` — payment initiation (proxy to Payments).
+#[utoipa::path(
+    post,
+    path = "/fdx/v6/payments",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn create_payment(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -740,6 +894,17 @@ pub async fn create_payment(
 }
 
 /// `GET /fdx/v6/capability` — provider capability metadata.
+#[utoipa::path(
+    get,
+    path = "/fdx/v6/capability",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn get_capability() -> Json<serde_json::Value> {
     Json(serde_json::json!({
         "fdx_version" : "6.5",
@@ -755,6 +920,17 @@ pub async fn get_capability() -> Json<serde_json::Value> {
 }
 
 /// `GET /fdx/v6/availability` — provider availability status.
+#[utoipa::path(
+    get,
+    path = "/fdx/v6/availability",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn get_availability() -> Json<serde_json::Value> {
     Json(serde_json::json!({
         "status": "available",
@@ -768,6 +944,17 @@ pub async fn get_availability() -> Json<serde_json::Value> {
 /// behind a short bounded cache; the rollup table + evidence admin page
 /// are the follow-on). The literal-zero stub is gone: these are real
 /// counters now.
+#[utoipa::path(
+    get,
+    path = "/fdx/v6/certification-metrics",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn get_certification_metrics(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -1042,6 +1229,17 @@ pub struct ConsentCallbackQuery {
 /// For now (dev), this activates the consent and redirects back to the
 /// eFintech app. In production, this would exchange the code for tokens
 /// at Auth, store the token grants, and enqueue data retrieval.
+#[utoipa::path(
+    get,
+    path = "/fdx/consents/callback",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn consent_callback(
     State(state): State<AppState>,
     req_headers: HeaderMap,
@@ -1672,6 +1870,17 @@ pub struct ListRecipientAccountsQuery {
 /// §3.1.6 "Select Accounts"). The account IDs are stored in
 /// consent_resources and used to filter the Ledger account list.
 /// If no consent_id is provided, returns all accounts (backward compat).
+#[utoipa::path(
+    get,
+    path = "/v1/recipient/accounts",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn list_recipient_accounts(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -1842,6 +2051,17 @@ pub async fn list_recipient_accounts(
 }
 
 /// `GET /v1/recipient/accounts/{id}/transactions` — recipient transaction history.
+#[utoipa::path(
+    get,
+    path = "/v1/recipient/accounts/{id}/transactions",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn get_recipient_account_transactions(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -1872,6 +2092,17 @@ pub async fn get_recipient_account_transactions(
 }
 
 /// `GET /v1/recipient/notifications` — notification feed for the recipient.
+#[utoipa::path(
+    get,
+    path = "/v1/recipient/notifications",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn list_notifications(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -2313,6 +2544,17 @@ pub async fn get_recipient_consent(
 // ── Flow proxy-back (Story ) ────────────────────────────────────
 
 /// `POST /v1/internal/steps/execute` — Flow proxy-back for FDX domain steps.
+#[utoipa::path(
+    post,
+    path = "/v1/internal/steps/execute",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "internal",
+)]
 pub async fn execute_step(
     State(_state): State<AppState>,
     _headers: HeaderMap,
@@ -2324,6 +2566,17 @@ pub async fn execute_step(
 
 // ── Health ───────────────────────────────────────────────────────────────
 
+#[utoipa::path(
+    get,
+    path = "/v1/health",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "meta",
+)]
 pub async fn health() -> Json<serde_json::Value> {
     Json(
         serde_json::json!({ "status": "ok", "service": "fdx", "version": sentin8::build_info::id(), "build": sentin8::build_info::build_hash() }),

@@ -42,6 +42,17 @@ use crate::middleware;
 /// `GET /fdx/v6/accounts/{accountId}/payment-networks/{paymentNetworkId}`
 /// the payment network(s) for this `bankId`/`identifier` pair (; proxy
 /// to Ledger's payment-networks read, filtered to the requested id).
+#[utoipa::path(
+    get,
+    path = "/fdx/v6/accounts/{id}/payment-networks/{paymentNetworkId}",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn get_payment_network(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -124,6 +135,17 @@ pub fn validate_revocation(req: &RevocationRequest) -> Result<(), Response> {
 /// `PUT /fdx/v6/accounts/{accountId}/payment-networks/{paymentNetworkId}/revocation`
 /// — revoke the payment network identifier (; persists the revocation
 /// record and answers 204 No Content per spec).
+#[utoipa::path(
+    put,
+    path = "/fdx/v6/accounts/{id}/payment-networks/{paymentNetworkId}/revocation",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn revoke_payment_network(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -161,6 +183,17 @@ pub async fn revoke_payment_network(
 
 /// `GET /fdx/v6/accounts/{accountId}/payment-networks/{paymentNetworkId}/revocation`
 /// — revocation lifecycle events for the identifier.
+#[utoipa::path(
+    get,
+    path = "/fdx/v6/accounts/{id}/payment-networks/{paymentNetworkId}/revocation",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn get_payment_network_revocations(
     State(state): State<AppState>,
     headers: HeaderMap,

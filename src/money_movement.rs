@@ -38,6 +38,17 @@ use crate::middleware;
 
 /// `GET /fdx/v6/payments/{paymentId}` — payment status read (proxy to
 /// Bank8:Payments `GET /v1/payments/{id}`).
+#[utoipa::path(
+    get,
+    path = "/fdx/v6/payments/{paymentId}",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn get_payment(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -50,6 +61,17 @@ pub async fn get_payment(
 
 /// `GET /fdx/v6/transfers/{transferId}` — transfer status read (proxy to
 /// Bank8:Payments).
+#[utoipa::path(
+    get,
+    path = "/fdx/v6/transfers/{transferId}",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn get_transfer(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -62,6 +84,17 @@ pub async fn get_transfer(
 
 /// `PATCH /fdx/v6/transfers/{transferId}` — update a transfer (amount/due
 /// date where the scheme allows; proxies Bank8:Payments).
+#[utoipa::path(
+    patch,
+    path = "/fdx/v6/transfers/{transferId}",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn update_transfer(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -89,6 +122,17 @@ pub async fn update_transfer(
 
 /// `DELETE /fdx/v6/transfers/{transferId}` — cancel a transfer (spec
 /// `cancelTransfer`; proxies Bank8:Payments cancel where the scheme allows).
+#[utoipa::path(
+    delete,
+    path = "/fdx/v6/transfers/{transferId}",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn cancel_transfer(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -145,6 +189,17 @@ pub(crate) async fn proxy_payments_get(
 
 /// `GET /fdx/v6/payees` — payee search/list (proxy to Bank8:Payments
 /// `GET /v1/payees`).
+#[utoipa::path(
+    get,
+    path = "/fdx/v6/payees",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn list_payees(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -155,6 +210,17 @@ pub async fn list_payees(
 }
 
 /// `POST /fdx/v6/payees` — create a payee (proxy to Bank8:Payments).
+#[utoipa::path(
+    post,
+    path = "/fdx/v6/payees",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn create_payee(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -177,6 +243,17 @@ pub async fn create_payee(
 }
 
 /// `PUT /fdx/v6/payees/{payeeId}` — update a payee (proxy to Bank8:Payments).
+#[utoipa::path(
+    put,
+    path = "/fdx/v6/payees/{payeeId}",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn update_payee(
     State(state): State<AppState>,
     headers: HeaderMap,

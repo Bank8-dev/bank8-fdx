@@ -59,6 +59,17 @@ pub struct CreateRecurringPaymentRequest {
 
 /// `POST /fdx/v6/recurring-payments` — create a recurring payment
 /// (; backed by Bank8:Payments `scheduled_payments`).
+#[utoipa::path(
+    post,
+    path = "/fdx/v6/recurring-payments",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn create_recurring_payment(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -125,6 +136,17 @@ pub fn frequency_to_rrule(frequency: &str) -> Option<String> {
 
 /// `GET /fdx/v6/recurring-payments` — search recurring payments (;
 /// proxies the payments scheduled-payments list).
+#[utoipa::path(
+    get,
+    path = "/fdx/v6/recurring-payments",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn list_recurring_payments(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -135,6 +157,17 @@ pub async fn list_recurring_payments(
 }
 
 /// `GET /fdx/v6/recurring-payments/{recurringPaymentId}` — detail.
+#[utoipa::path(
+    get,
+    path = "/fdx/v6/recurring-payments/{recurringPaymentId}",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn get_recurring_payment(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -147,6 +180,17 @@ pub async fn get_recurring_payment(
 
 /// `GET /fdx/v6/recurring-payments/{recurringPaymentId}/payments` — the
 /// executed occurrences (; proxies payments for the source schedule).
+#[utoipa::path(
+    get,
+    path = "/fdx/v6/recurring-payments/{recurringPaymentId}/payments",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn list_recurring_payment_occurrences(
     State(state): State<AppState>,
     headers: HeaderMap,

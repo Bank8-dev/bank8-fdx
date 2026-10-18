@@ -29,6 +29,17 @@ use crate::payment_networks::{validate_revocation, RevocationRequest};
 
 /// `GET /fdx/v6/consents/{consentId}/revocation` — the revocation record
 /// (reason/initiator/timestamp; ).
+#[utoipa::path(
+    get,
+    path = "/fdx/v6/consents/{id}/revocation",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "consent",
+)]
 pub async fn get_consent_revocation(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -61,6 +72,17 @@ pub async fn get_consent_revocation(
 /// RevocationRequest (reason/initiator/otherReason). Existing handler
 /// `handlers::revoke_fdx_consent` is extended here: the revocation
 /// row is persisted and a CONSENT_REVOKED notification is queued.
+#[utoipa::path(
+    put,
+    path = "/fdx/v6/consents/{id}/revocation",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "consent",
+)]
 pub async fn revoke_consent_with_record(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -112,6 +134,16 @@ pub async fn revoke_consent_with_record(
 /// grant ledger and takes effect on the next data call. The delegated
 /// token's `sub` IS the grant's customer — the same subject the bank's own
 /// dashboard revokes for.
+#[utoipa::path(
+    post,
+    path = "/fdx/v6/consents/{id}/revoke",
+    responses(
+        (status = 200, description = "Revoked via the POST alias (delegates to the PUT revocation surface)"),
+        (status = 403, description = "Delegated subject must be the grant's customer"),
+    ),
+    security(),
+    tag = "consent",
+)]
 pub async fn revoke_consent_with_record_post(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -173,6 +205,17 @@ pub fn validate_duration_model(
 
 /// `PUT /fdx/v6/consents/{consentId}/lifecycle` — set the consent duration
 /// model.
+#[utoipa::path(
+    put,
+    path = "/fdx/v6/consents/{id}/lifecycle",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "consent",
+)]
 pub async fn update_consent_lifecycle(
     State(state): State<AppState>,
     headers: HeaderMap,

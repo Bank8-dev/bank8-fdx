@@ -40,6 +40,17 @@ use crate::middleware;
 /// this handler mints a short-lived read URL via the Storage link API and
 /// answers 302 Found with the `Location` header (spec: statement image may
 /// be served inline or via redirect; §5.0a signed URLs).
+#[utoipa::path(
+    get,
+    path = "/fdx/v6/accounts/{id}/statements/{statementId}",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn download_statement(
     State(state): State<AppState>,
     headers: HeaderMap,

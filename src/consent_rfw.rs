@@ -41,6 +41,17 @@ pub struct ConsentUiQuery {
 /// - "Authorize" button (POST to /v1/auth/consent/approve)
 /// - "Deny" button (POST to /v1/auth/consent/deny)
 /// - Data endpoint declaration for account fetch (/v1/auth/consent/accounts)
+#[utoipa::path(
+    get,
+    path = "/v1/auth/consent/ui",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "consent",
+)]
 pub async fn auth_consent_ui(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -130,6 +141,17 @@ pub async fn auth_consent_ui(
 /// Returns the customer's accounts at this Data Provider. Called by the
 /// RFW page's data fetch (proxied by Sentin8:Auth with a short-lived JWT).
 /// Fetches accounts from Bank8:Ledger.
+#[utoipa::path(
+    get,
+    path = "/v1/auth/consent/accounts",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "consent",
+)]
 pub async fn auth_consent_accounts(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -235,6 +257,17 @@ pub struct ConsentApproveRequest {
     pub selected_account_ids: Option<Vec<String>>,
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/auth/consent/approve",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "consent",
+)]
 pub async fn auth_consent_approve(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -265,6 +298,17 @@ pub struct ConsentDenyRequest {
     pub state: Option<String>,
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/auth/consent/deny",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "consent",
+)]
 pub async fn auth_consent_deny(
     State(state): State<AppState>,
     headers: HeaderMap,

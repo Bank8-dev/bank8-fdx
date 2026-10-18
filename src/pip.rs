@@ -52,6 +52,17 @@ pub struct PipPartyResponse {
 
 /// `POST /fdx/v6/payment-initiation-parties` — register a payment
 /// initiation party.
+#[utoipa::path(
+    post,
+    path = "/fdx/v6/payment-initiation-parties",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn create_pip_party(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -95,6 +106,17 @@ pub async fn create_pip_party(
 
 /// `GET /fdx/v6/payment-initiation-parties/{paymentInitiationPartyId}`
 /// party detail.
+#[utoipa::path(
+    get,
+    path = "/fdx/v6/payment-initiation-parties/{partyId}",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn get_pip_party(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -137,6 +159,17 @@ pub struct CreatePipPaymentMethodRequest {
 
 /// `POST /fdx/v6/payment-initiation-parties/{partyId}/payment-methods`
 /// register a payment method for the party.
+#[utoipa::path(
+    post,
+    path = "/fdx/v6/payment-initiation-parties/{partyId}/payment-methods",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn create_pip_payment_method(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -169,6 +202,17 @@ pub async fn create_pip_payment_method(
 
 /// `DELETE /fdx/v6/payment-initiation-parties/{partyId}/payment-methods/{regId}`
 /// — revoke a party payment method.
+#[utoipa::path(
+    delete,
+    path = "/fdx/v6/payment-initiation-parties/{partyId}/payment-methods/{regId}",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn revoke_pip_payment_method(
     State(state): State<AppState>,
     headers: HeaderMap,

@@ -63,6 +63,17 @@ pub fn unsupported_operation_response(path: &str) -> Response {
 /// `GET /fdx/v6/operation-support` — explicit machine-readable statement of
 /// which FDX families this provider implements vs reserves (§3.1); pairs
 /// with the middleware 501s so clients can preflight.
+#[utoipa::path(
+    get,
+    path = "/fdx/v6/operation-support",
+    responses(
+        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Missing the FDX consent/scope gate"),
+    ),
+    security(),
+    tag = "fdx",
+)]
 pub async fn get_operation_support(
     State(state): State<AppState>,
     headers: HeaderMap,
