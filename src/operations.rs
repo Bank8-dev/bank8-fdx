@@ -3,7 +3,7 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Bank8:FDX
 // SPDX-License-Identifier: Apache-2.0
 
-//! FDX v6.5 completion — out-of-scope family classification +
+//! FDX v6.5 completion - out-of-scope family classification +
 //! machine-readable operation-support statement (design §3.1, §5.1).
 
 use axum::{
@@ -20,7 +20,7 @@ use crate::middleware;
 
 /// Precise out-of-scope path check: whole families (tax, payroll, fraud,
 /// rewards, registry, images) plus the two account-scoped out-of-scope
-/// sub-resources. Returns true only for §3.1 families — implemented routes
+/// sub-resources. Returns true only for §3.1 families - implemented routes
 /// must never hit this.
 pub fn is_out_of_scope_path(path: &str) -> bool {
     const WHOLE_FAMILIES: &[&str] = &[
@@ -60,7 +60,7 @@ pub fn unsupported_operation_response(path: &str) -> Response {
     .into_response()
 }
 
-/// `GET /fdx/v6/operation-support` — explicit machine-readable statement of
+/// `GET /fdx/v6/operation-support` - explicit machine-readable statement of
 /// which FDX families this provider implements vs reserves (§3.1); pairs
 /// with the middleware 501s so clients can preflight.
 #[utoipa::path(

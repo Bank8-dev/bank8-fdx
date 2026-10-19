@@ -19,7 +19,7 @@ const PG_ROLES: &[PgRole] = &[PgRole {
     // Grants live in the bank8 vertical database only (DBX §6.6
     // database-per-vertical, schema-per-service).
     database: "bank8",
-    // FDX owns all its reads — no cross-schema grants.
+    // FDX owns all its reads - no cross-schema grants.
     cross_schema_grants: &[],
 }];
 
@@ -28,15 +28,15 @@ const PG_ROLES: &[PgRole] = &[PgRole {
 /// `certless:<workload>` rows into `sentin8.auth_m2m_scope_grants`. Scopes
 /// use the full vocabulary form (bare forms + missing grants fail-closed
 /// every bus/policy/stat DCR).
-/// - `bank8:fdx` — the service's own client (fdx/src/server.rs): bus
+/// - `bank8:fdx` - the service's own client (fdx/src/server.rs): bus
 ///
 /// produce/consume (env-init `sentin8:sys:service:updated` consumer +
 /// notifications).
-/// - `bank8:fdx-policy` — Shield hot-reload consumer
+/// - `bank8:fdx-policy` - Shield hot-reload consumer
 ///
 /// (policy_bus_client, full colon identity).
-/// - `fdx-policy` — Shield stat emitter (stat_emit short form).
-/// - `fdx-audit` — shell audit-journal pusher workload (audit crate
+/// - `fdx-policy` - Shield stat emitter (stat_emit short form).
+/// - `fdx-audit` - shell audit-journal pusher workload (audit crate
 ///
 /// §6.8; boot step 8c).
 const M2M_GRANTS: &[M2mGrant] = &[
@@ -49,7 +49,7 @@ const M2M_GRANTS: &[M2mGrant] = &[
             "sentin8:flow:write",
         ],
     },
-    // The runtime DCR call sites pass the bare short name (`fdx` —
+    // The runtime DCR call sites pass the bare short name (`fdx` -
     // fdx/src/server.rs bus client + Flow registration, telemetry.rs's
     // stat client), not the colon identity. Grant BOTH spellings; the
     // gate looks up the exact client_name.
@@ -82,7 +82,7 @@ const M2M_GRANTS: &[M2mGrant] = &[
         workload: "bank8-fdx-sys",
         scopes: &["sentin8:sys:tenants:read"],
     },
-    // CERTFREE-8V: the fdx→ledger proxy workload — the account-detail,
+    // CERTFREE-8V: the fdx→ledger proxy workload - the account-detail,
     // balances, and transaction reads the FDX surface proxies (the
     // static BANK8_LEDGER_TOKEN dev convention is retired; the ledger
     // side's scope-mirror policy set admits these scopes).
@@ -90,7 +90,7 @@ const M2M_GRANTS: &[M2mGrant] = &[
         workload: "bank8-fdx-ledger",
         scopes: &["bank8:ledger:accounts:read", "bank8:ledger:postings:read"],
     },
-    // CERTFREE-8V: the fdx→payments proxy workload — transfers and
+    // CERTFREE-8V: the fdx→payments proxy workload - transfers and
     // payment creation through the payments public API.
     M2mGrant {
         workload: "bank8-fdx-payments",
@@ -100,7 +100,7 @@ const M2M_GRANTS: &[M2mGrant] = &[
         ],
     },
     // TLS-RLS-4 (design/sentin8-vertical-data-plane-contract.md §VDC.7):
-    // the database-free HostContextResolver’s resolve workload — cache
+    // the database-free HostContextResolver’s resolve workload - cache
     // miss calls Sys `GET /v1/resolve/hostname`.
     M2mGrant {
         workload: "bank8-fdx-tls",
@@ -233,11 +233,11 @@ const ADMIN_UI_PAGES: &[AdminUiPage] = &[
 
 /// Default declarative policy set (Sentin8:Policy design §3.2/§3.4,
 /// seeded by `vertical enroll` as `origin='platform'`, `mode='enforced'`):
-/// action-granular scope permits over the LIVE effective scope set — the
+/// action-granular scope permits over the LIVE effective scope set - the
 /// exact mirror of the gates this service's handlers evaluate in step 5
 /// (policy design §4.3). Step 5 is the only
 /// gate; shadow is the emergency one-UPDATE rollback lever only.
-/// The Shield text of the declared scope-mirror set — public so the
+/// The Shield text of the declared scope-mirror set - public so the
 /// policy wiring tests assert against the REAL seed.
 pub const SCOPE_MIRROR_POLICIES: &str = "permit(principal, action == Action::\"bank8:fdx:consents:read\", resource) when { principal.scopes.contains(\"bank8:fdx:admin\") };\npermit(principal, action == Action::\"bank8:fdx:consents:read\", resource) when { principal.scopes.contains(\"bank8:fdx:consents:read\") };\npermit(principal, action == Action::\"bank8:fdx:consents:read\", resource) when { principal.scopes.contains(\"bank8:fdx:provider:read\") };\npermit(principal, action == Action::\"bank8:fdx:consents:read\", resource) when { principal.scopes.contains(\"bank8:fdx:recipient:read\") };\npermit(principal, action == Action::\"bank8:fdx:consents:read\", resource) when { principal.scopes.contains(\"sentin8:sys:admin\") };\npermit(principal, action == Action::\"bank8:fdx:consents:read\", resource) when { principal.scopes.contains(\"sentin8:sys:org:admin\") };\npermit(principal, action == Action::\"bank8:fdx:consents:read\", resource) when { principal.scopes.contains(\"sentin8:sys:env:admin\") };\npermit(principal, action == Action::\"bank8:fdx:consents:write\", resource) when { principal.scopes.contains(\"bank8:fdx:consents:write\") };\npermit(principal, action == Action::\"bank8:fdx:consents:write\", resource) when { principal.scopes.contains(\"sentin8:sys:admin\") };\npermit(principal, action == Action::\"bank8:fdx:consents:write\", resource) when { principal.scopes.contains(\"sentin8:sys:org:admin\") };\npermit(principal, action == Action::\"bank8:fdx:consents:write\", resource) when { principal.scopes.contains(\"sentin8:sys:env:admin\") };\npermit(principal, action == Action::\"bank8:fdx:provider:write\", resource) when { principal.scopes.contains(\"bank8:fdx:provider:write\") };\npermit(principal, action == Action::\"bank8:fdx:provider:write\", resource) when { principal.scopes.contains(\"sentin8:sys:admin\") };\npermit(principal, action == Action::\"bank8:fdx:provider:write\", resource) when { principal.scopes.contains(\"sentin8:sys:org:admin\") };\npermit(principal, action == Action::\"bank8:fdx:provider:write\", resource) when { principal.scopes.contains(\"sentin8:sys:env:admin\") };\npermit(principal, action == Action::\"bank8:fdx:recipient:read\", resource) when { principal.scopes.contains(\"bank8:fdx:recipient:read\") };\npermit(principal, action == Action::\"bank8:fdx:recipient:read\", resource) when { principal.scopes.contains(\"sentin8:sys:admin\") };\npermit(principal, action == Action::\"bank8:fdx:recipient:read\", resource) when { principal.scopes.contains(\"sentin8:sys:org:admin\") };\npermit(principal, action == Action::\"bank8:fdx:recipient:read\", resource) when { principal.scopes.contains(\"sentin8:sys:env:admin\") };\npermit(principal, action == Action::\"bank8:fdx:recipient:write\", resource) when { principal.scopes.contains(\"bank8:fdx:recipient:write\") };\npermit(principal, action == Action::\"bank8:fdx:recipient:write\", resource) when { principal.scopes.contains(\"sentin8:sys:admin\") };\npermit(principal, action == Action::\"bank8:fdx:recipient:write\", resource) when { principal.scopes.contains(\"sentin8:sys:org:admin\") };\npermit(principal, action == Action::\"bank8:fdx:recipient:write\", resource) when { principal.scopes.contains(\"sentin8:sys:env:admin\") };";
 
@@ -251,7 +251,7 @@ const POLICIES: &[PolicySetDecl] = &[PolicySetDecl {
     default_enabled: true,
 }];
 
-/// Default ReBAC relation tuples (design §3.1c) — none declared by this
+/// Default ReBAC relation tuples (design §3.1c) - none declared by this
 /// service today; env admins author their own graph via the relations
 /// admin API (approver↔payment edges for payments, holder edges for
 /// fdx consents are tenant-authored).
@@ -260,7 +260,7 @@ const RELATIONS: &[RelationDecl] = &[];
 const SQL_1_INIT: &str = include_str!("../sql/init.sql");
 
 // V2 convergence: provider_profiles is a PUBLIC cross-env registry (the
-// recipient catalog) — the v1 blanket FORCE-RLS pass wrongly applied the
+// recipient catalog) - the v1 blanket FORCE-RLS pass wrongly applied the
 // tenant-visibility policies to it, so the cross-env catalog read saw
 // nothing and the provider observation returned an empty list. The block
 // strips the table's RLS (and any policies) idempotently; the v1 init.sql

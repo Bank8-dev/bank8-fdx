@@ -3,7 +3,7 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Bank8:FDX
 // SPDX-License-Identifier: Apache-2.0
 
-//! FDX v6.5 completion handlers — shared DB helpers.
+//! FDX v6.5 completion handlers - shared DB helpers.
 //! Small cross-family plumbing used by the `/fdx/v6` completion handlers
 //! (statements, money movement, PIP, recurring, recipients, payment
 //! networks, notifications, consents, operations).

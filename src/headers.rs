@@ -3,7 +3,7 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Bank8:FDX
 // SPDX-License-Identifier: Apache-2.0
 
-//! Story — FDX header handling.
+//! Story - FDX header handling.
 //! Extracts FDX-specific headers (`x-fapi-interaction-id`,
 //! `FDX-API-Actor-Type`, `Idempotency-Key`) and generates interaction IDs
 //! for responses.

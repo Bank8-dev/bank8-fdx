@@ -3,7 +3,7 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Bank8:FDX
 // SPDX-License-Identifier: Apache-2.0
 
-//! Story — FDX v6.5 contract validation.
+//! Story - FDX v6.5 contract validation.
 //! Validates inbound requests against the FDX v6.5 API contract: required
 //! fields, content-type, accept headers, and path/method combinations.
 
@@ -259,7 +259,7 @@ pub fn validate_fdx_request(method: &str, path: &str, body: &str) -> Result<(), 
         return Err(FdxValidationError::MethodNotAllowed.to_fdx_error());
     }
     if route.2 {
-        // Body required — parse and check required fields.
+        // Body required - parse and check required fields.
         let parsed: serde_json::Value = if body.is_empty() {
             return Err(FdxValidationError::MissingRequiredField("(body)".into()).to_fdx_error());
         } else {
@@ -289,7 +289,7 @@ fn route_matches(pattern: &str, path: &str) -> bool {
     }
     for (pp, ap) in pat_parts.iter().zip(path_parts.iter()) {
         if pp.starts_with('{') && pp.ends_with('}') {
-            // Placeholder — accept any non-empty segment.
+            // Placeholder - accept any non-empty segment.
             if ap.is_empty() {
                 return false;
             }

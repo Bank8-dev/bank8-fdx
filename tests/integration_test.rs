@@ -3,11 +3,11 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Bank8:FDX
 // SPDX-License-Identifier: Apache-2.0
 
-//! Story — Integration tests for FDX.
+//! Story - Integration tests for FDX.
 //! Covers provider API route validation, recipient consent flow, consent
 //! enforcement via CSDF minimisation, and the Flow proxy-back handler.
 //! Source modules are linked via `bank8_fdx_server` (the crate's lib target,
-//! `lib.rs` re-exports every module) — no `#[path]` includes needed.
+//! `lib.rs` re-exports every module) - no `#[path]` includes needed.
 
 use bank8_fdx_server::{
     csdf, errors, flow, headers, middleware, notifications, tax, tokens, validation,
@@ -106,7 +106,7 @@ fn integration_recipient_consent_revoke_via_scope_check() {
 
 #[test]
 fn integration_csdf_minimization_removes_unauthorized_data() {
-    // Recipient has only ACCOUNTS scope — transactions/statements must be stripped.
+    // Recipient has only ACCOUNTS scope - transactions/statements must be stripped.
     let data = serde_json::json!({
         "accounts": [{"id": "a1", "name": "Checking"}],
         "transactions": [{"id": "t1", "amount": "100"}],
@@ -329,7 +329,7 @@ fn integration_middleware_minimize_response_applies_csdf() {
     assert!(out.get("customer").is_none());
 }
 
-// ── Provider endpoints — contract validation for the new routes (.5) ──
+// ── Provider endpoints - contract validation for the new routes (.5) ──
 
 #[test]
 fn integration_provider_fdx_consent_introspection_route_valid() {
@@ -392,7 +392,7 @@ fn integration_tokens_paths_differ_per_kind_and_consent() {
     assert_ne!(tokens::access_token_path(a), tokens::access_token_path(b));
 }
 
-// ── FDX headers (.1) — interaction-id echo/generate ─────────────────
+// ── FDX headers (.1) - interaction-id echo/generate ─────────────────
 
 #[test]
 fn integration_headers_interaction_id_generated_when_absent() {

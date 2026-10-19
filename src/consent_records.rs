@@ -3,7 +3,7 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Bank8:FDX
 // SPDX-License-Identifier: Apache-2.0
 
-//! FDX v6.5 completion — / consent revocation record + lifecycle
+//! FDX v6.5 completion - / consent revocation record + lifecycle
 //! (duration/lookback) on the `/fdx/v6/consents` surface (design §5.1, §6.2).
 
 use axum::{
@@ -27,7 +27,7 @@ use crate::payment_networks::{validate_revocation, RevocationRequest};
 
 // ── : consent revocation record ──────────────────────────────────────
 
-/// `GET /fdx/v6/consents/{consentId}/revocation` — the revocation record
+/// `GET /fdx/v6/consents/{consentId}/revocation` - the revocation record
 /// (reason/initiator/timestamp; ).
 #[utoipa::path(
     get,
@@ -46,7 +46,7 @@ pub async fn get_consent_revocation(
     Path(consent_id): Path<Uuid>,
 ) -> Result<Json<JsonValue>, Response> {
     let _a = middleware::provider_authz(&state, &headers, None).await?;
-    // Same-transaction discipline (fdx DESIGN.md §5) — see start_consent.
+    // Same-transaction discipline (fdx DESIGN.md §5) - see start_consent.
     let mut conn = state.pool.begin().await.map_err(db_err)?;
     set_tenant_context(&mut conn, _a.env_id()).await;
     let row = sqlx::query(
@@ -68,7 +68,7 @@ pub async fn get_consent_revocation(
     })))
 }
 
-/// `PUT /fdx/v6/consents/{consentId}/revocation` — the FDX
+/// `PUT /fdx/v6/consents/{consentId}/revocation` - the FDX
 /// RevocationRequest (reason/initiator/otherReason). Existing handler
 /// `handlers::revoke_fdx_consent` is extended here: the revocation
 /// row is persisted and a CONSENT_REVOKED notification is queued.
@@ -92,7 +92,7 @@ pub async fn revoke_consent_with_record(
     let a = middleware::provider_authz(&state, &headers, None).await?;
     validate_revocation(&req)?;
     // Same-transaction discipline (fdx DESIGN.md §5): the tenant context
-    // is transaction-local — begin first, then context + statements on
+    // is transaction-local - begin first, then context + statements on
     // that one tx.
     let mut conn = state.pool.begin().await.map_err(db_err)?;
     set_tenant_context(&mut conn, a.env_id()).await;
@@ -121,18 +121,18 @@ pub async fn revoke_consent_with_record(
     let _id: Uuid = updated.get("id");
     conn.commit().await.map_err(db_err)?;
     // Bus event + CONSENT_REVOKED notification for subscribed recipients
-    // (design §5.1a — the delivery consumer delivers via Auth webhooks).
+    // (design §5.1a - the delivery consumer delivers via Auth webhooks).
     emit_event(&state.pool, a.env_id(), "bank8:fdx:consent:revoked", serde_json::json!({ "consent_id": consent_id, "reason": req.reason, "initiator": req.initiator })).await;
     queue_consent_revoked_notification(&state, a.env_id(), consent_id).await;
     Ok(StatusCode::NO_CONTENT)
 }
 
-/// `POST /fdx/v6/consents/{consentId}/revoke` — POST alias of the PUT
+/// `POST /fdx/v6/consents/{consentId}/revoke` - POST alias of the PUT
 /// revocation surface (fdx DESIGN.md §4): the recipient-side fdx instance
 /// calls this with the delegated provider token after revoking its own
 /// registry row, so a fintech-initiated revocation lands on the provider's
 /// grant ledger and takes effect on the next data call. The delegated
-/// token's `sub` IS the grant's customer — the same subject the bank's own
+/// token's `sub` IS the grant's customer - the same subject the bank's own
 /// dashboard revokes for.
 #[utoipa::path(
     post,
@@ -203,7 +203,7 @@ pub fn validate_duration_model(
     Ok(())
 }
 
-/// `PUT /fdx/v6/consents/{consentId}/lifecycle` — set the consent duration
+/// `PUT /fdx/v6/consents/{consentId}/lifecycle` - set the consent duration
 /// model.
 #[utoipa::path(
     put,
@@ -229,7 +229,7 @@ pub async fn update_consent_lifecycle(
         req.lookback_period_days,
     )
     .map_err(FdxErrorResponse::bad_request)?;
-    // Same-transaction discipline (fdx DESIGN.md §5) — see revoke_consent_with_record.
+    // Same-transaction discipline (fdx DESIGN.md §5) - see revoke_consent_with_record.
     let mut conn = state.pool.begin().await.map_err(db_err)?;
     set_tenant_context(&mut conn, a.env_id()).await;
     let updated = sqlx::query(
@@ -271,7 +271,7 @@ pub async fn update_consent_lifecycle(
 }
 
 /// Lookback filter: the earliest transaction date a consent permits
-/// (— measured from request time, not grant time; §6.2). None means
+/// (- measured from request time, not grant time; §6.2). None means
 /// unrestricted (no lookbackPeriod set).
 pub fn lookback_cutoff(
     lookback_period_days: Option<i32>,

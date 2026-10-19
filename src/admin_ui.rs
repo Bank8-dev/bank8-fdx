@@ -3,7 +3,7 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Bank8:FDX
 // SPDX-License-Identifier: Apache-2.0
 
-//! Bank8:FDX Admin UI handlers — RFW (Remote Flutter Widget) definitions.
+//! Bank8:FDX Admin UI handlers - RFW (Remote Flutter Widget) definitions.
 
 use axum::{
     extract::{Path, State},
@@ -16,7 +16,7 @@ use sentin8::rfw::widget::*;
 
 use crate::handlers::AppState;
 
-/// GET /v1/admin/ui/{page} — return RFW definition for the requested admin page.
+/// GET /v1/admin/ui/{page} - return RFW definition for the requested admin page.
 #[utoipa::path(
     get,
     path = "/v1/admin/ui/{page}",
@@ -49,7 +49,7 @@ pub async fn get_admin_ui(
         "consents" => consents_page(),
         "csdf" => csdf_page(),
         "settings" => settings_page(),
-        // ── Policy Studio (design §3.7, story 28.14) — shared page
+        // ── Policy Studio (design §3.7, story 28.14) - shared page
         // constructors; the guard guarantees `Some` (§3.7 dispatch).
         p if sentin8::rfw::policy_page("bank8:fdx", p).is_some() => {
             sentin8::rfw::policy_page("bank8:fdx", p)
@@ -242,7 +242,7 @@ fn consents_page() -> AdminUiPage {
 
 fn csdf_page() -> AdminUiPage {
     AdminPage::new("CSDF Classification")
-        .widget(RemoteWidget::Text(WidgetText { text: "CSDF data classification dashboard — field-level filtering based on consent, scope, and product.".into(), text_type: WidgetTextType::Body, align: TextAlign::Left, max_lines: None }))
+        .widget(RemoteWidget::Text(WidgetText { text: "CSDF data classification dashboard - field-level filtering based on consent, scope, and product.".into(), text_type: WidgetTextType::Body, align: TextAlign::Left, max_lines: None }))
         .build()
 }
 

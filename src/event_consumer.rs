@@ -3,18 +3,18 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Bank8:FDX
 // SPDX-License-Identifier: Apache-2.0
 
-//! Sentin8:Bus consumers (fdx DESIGN.md §2) — two stream families:
+//! Sentin8:Bus consumers (fdx DESIGN.md §2) - two stream families:
 //!
-//! * `sys` — `sentin8:sys:service:updated` events: when the `fdx` service
+//! * `sys` - `sentin8:sys:service:updated` events: when the `fdx` service
 //!   is enabled for an org/env, the consumer auto-registers an FDX
 //!   provider profile in `provider_profiles` (the recipient-side catalog)
 //!   so the org appears as a connectable provider. The provider profile
 //!   uses the env's auth domain as the issuer URL.
-//! * `auth` — `sentin8:auth:grant:created` events: the provider-side
+//! * `auth` - `sentin8:auth:grant:created` events: the provider-side
 //!   GRANT SEED (two-ledger model, DESIGN.md §1). The authorization
 //!   server is the seed of open-banking grant truth: when a customer
 //!   grants a consent at the AS, the provider-side fdx instance records
-//!   the grant in its OWN tenant — consent handle parsed from the OAuth
+//!   the grant in its OWN tenant - consent handle parsed from the OAuth
 //!   `state`, the provider-customer subject from the event's `user_id`,
 //!   the selected accounts as `consent_resources`. The recipient NEVER
 //!   writes into the provider.
@@ -27,9 +27,9 @@ use std::time::Duration;
 use futures_util::StreamExt;
 use sqlx::PgPool;
 
-/// Consumer group name (sys family) — identifies this FDX instance to Sentin8:Bus.
+/// Consumer group name (sys family) - identifies this FDX instance to Sentin8:Bus.
 const CONSUMER_GROUP: &str = "bank8:fdx:envinit";
-/// Consumer group name (auth family) — the provider grant-seed group.
+/// Consumer group name (auth family) - the provider grant-seed group.
 const AUTH_CONSUMER_GROUP: &str = "bank8:fdx:grantseed";
 
 /// Reconnect delay when the Bus SSE connection drops or an error occurs.
@@ -42,7 +42,7 @@ pub fn spawn(
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         // Two families, one task: the SSE loops are sequential within the
-        // task but independent streams at the bus — each connect/ack is
+        // task but independent streams at the bus - each connect/ack is
         // family-scoped. A drop on one family never stalls the other.
         tokio::select! {
             _ = run_envinit(pool.clone(), bus_client.clone()) => {},
@@ -65,10 +65,10 @@ async fn run_envinit(pool: PgPool, bus_client: sentin8::bus::client::BusClient) 
             Ok(resp) => {
                 tracing::info!("fdx: bus SSE connected to stream family 'sys'");
                 sse_loop("sys", CONSUMER_GROUP, &pool, &bus_client, resp).await;
-                tracing::info!("fdx: bus SSE disconnected — reconnecting");
+                tracing::info!("fdx: bus SSE disconnected - reconnecting");
             }
             Err(e) => {
-                tracing::warn!(error = %e, "fdx: bus SSE consume failed — reconnecting");
+                tracing::warn!(error = %e, "fdx: bus SSE consume failed - reconnecting");
             }
         }
         tokio::time::sleep(RECONNECT_DELAY).await;
@@ -83,10 +83,10 @@ async fn run_grantseed(pool: PgPool, bus_client: sentin8::bus::client::BusClient
             Ok(resp) => {
                 tracing::info!("fdx: bus SSE connected to stream family 'auth'");
                 sse_loop("auth", AUTH_CONSUMER_GROUP, &pool, &bus_client, resp).await;
-                tracing::info!("fdx: bus SSE disconnected (auth) — reconnecting");
+                tracing::info!("fdx: bus SSE disconnected (auth) - reconnecting");
             }
             Err(e) => {
-                tracing::warn!(error = %e, "fdx: bus SSE consume failed (auth) — reconnecting");
+                tracing::warn!(error = %e, "fdx: bus SSE consume failed (auth) - reconnecting");
             }
         }
         tokio::time::sleep(RECONNECT_DELAY).await;
@@ -95,7 +95,7 @@ async fn run_grantseed(pool: PgPool, bus_client: sentin8::bus::client::BusClient
 
 /// Process messages from a single Bus SSE connection until it drops.
 /// `handle` is the family-specific dispatcher (ACK after every processed
-/// message — the BUSACK-1 contract).
+/// message - the BUSACK-1 contract).
 async fn sse_loop(
     family: &'static str,
     group: &'static str,
@@ -139,7 +139,7 @@ async fn sse_loop(
             };
 
             // Family dispatch: sys → env-init, auth → grant seed
-            // (fdx DESIGN.md §2 — two families, one loop shape).
+            // (fdx DESIGN.md §2 - two families, one loop shape).
             match family {
                 "sys" => handle_envinit_message(pool, &msg).await,
                 "auth" => handle_grant_message(pool, &msg).await,
@@ -157,7 +157,7 @@ async fn sse_loop(
 /// (e.g. after a redeploy). VDC-9 (design/sentin8-vertical-data-plane-
 /// contract.md §VDC.5/§VDC.8): the former cross-database scan of the
 /// platform `sys_services` table never worked (those tables do not exist in
-/// the bank8 database) — the sanctioned discovery surface is the snapshot
+/// the bank8 database) - the sanctioned discovery surface is the snapshot
 /// consumer loop itself: the platform re-emits nothing, so a redeployed
 /// consumer re-derives profiles for envs already known LOCALLY (the
 /// `provider_profiles` rows) and relies on `sentin8:sys:service:updated`
@@ -175,7 +175,7 @@ async fn backfill_enabled_envs(pool: &PgPool) {
             }
         };
 
-    tracing::info!("fdx: backfill — {} known env(s) re-verified", rows.len());
+    tracing::info!("fdx: backfill - {} known env(s) re-verified", rows.len());
 
     for (env_id,) in rows {
         ensure_provider_profile(pool, env_id).await;
@@ -187,13 +187,13 @@ async fn backfill_enabled_envs(pool: &PgPool) {
 /// VDC-9 (design/sentin8-vertical-data-plane-contract.md §VDC.5): the
 /// tenant identity snapshot (env slug, org domain, org display name,
 /// auth domain) is obtained from Sys's tenant-snapshot API
-/// (`GET /v1/tenants/{env_id}`, M2M `sentin8:sys:tenants:read`) — the
+/// (`GET /v1/tenants/{env_id}`, M2M `sentin8:sys:tenants:read`) - the
 /// sanctioned on-demand read. The former cross-database join against the
 /// platform `sys_environments`/`sys_organizations` never worked (those
 /// tables do not exist in the bank8 database) and is removed.
 async fn ensure_provider_profile(pool: &PgPool, env_id: uuid::Uuid) {
     // Fetch the tenant snapshot from the platform (Sys tenant-snapshot
-    // API). A transient outage returns early — the next env-init or
+    // API). A transient outage returns early - the next env-init or
     // backfill pass retries (both are idempotent).
     let snapshot = match fetch_tenant_snapshot(env_id).await {
         Ok(Some(s)) => s,
@@ -212,7 +212,7 @@ async fn ensure_provider_profile(pool: &PgPool, env_id: uuid::Uuid) {
     let org_name: String = snapshot.org_display_name.clone();
 
     if org_domain.is_empty() {
-        tracing::warn!(%env_id, "fdx: no org_domain — skipping provider profile");
+        tracing::warn!(%env_id, "fdx: no org_domain - skipping provider profile");
         return;
     }
 
@@ -238,7 +238,7 @@ async fn ensure_provider_profile(pool: &PgPool, env_id: uuid::Uuid) {
 
     // Insert the provider profile (idempotent upsert on env_id+provider_name).
     // FORCE-RLS: the insert must carry the env context on the SAME
-    // connection (rule 2) — a bare-pool insert is rejected by
+    // connection (rule 2) - a bare-pool insert is rejected by
     // `WITH CHECK (env_id = sentin8_current_env_id())`.
     let mut tx = match pool.begin().await {
         Ok(t) => t,
@@ -278,11 +278,11 @@ async fn ensure_provider_profile(pool: &PgPool, env_id: uuid::Uuid) {
 /// tenant. Payload-complete envelope from Sentin8:Auth (auth DESIGN §4):
 /// `{grant_id, client_id, user_id, env_id, scope, state,
 /// selected_account_ids}`. The `state` is the recipient's opaque OAuth
-/// state — for Bank8:FDX consents it is `"<consent handle>|<app origin>"`
+/// state - for Bank8:FDX consents it is `"<consent handle>|<app origin>"`
 /// (packed at PAR time by the recipient's consent start); only the handle
 /// segment identifies the flow.
 /// Non-FDX grants (any other client's `state`) are seeded as plain grant
-/// rows keyed by the AS's own grant identity — the ledger records every
+/// rows keyed by the AS's own grant identity - the ledger records every
 /// authorization the AS reports for this env, so consent filtering stays
 /// complete regardless of which client ran the ceremony.
 async fn handle_grant_message(pool: &PgPool, msg: &sentin8::bus::contracts::Message) {
@@ -293,7 +293,7 @@ async fn handle_grant_message(pool: &PgPool, msg: &sentin8::bus::contracts::Mess
     // VDC-2 consumer-side defense-in-depth: the event's first colon
     // segment must match the recorded producer vertical (`sentin8`).
     if let Err(reason) = sentin8::bus::client::BusClient::require_publisher(msg) {
-        tracing::warn!(reason = %reason, "fdx: untrusted publisher — skipping grant seed");
+        tracing::warn!(reason = %reason, "fdx: untrusted publisher - skipping grant seed");
         return;
     }
 
@@ -305,7 +305,7 @@ async fn handle_grant_message(pool: &PgPool, msg: &sentin8::bus::contracts::Mess
     {
         Some(id) => id,
         None => {
-            tracing::warn!("fdx: grant:created without env_id — skipping");
+            tracing::warn!("fdx: grant:created without env_id - skipping");
             return;
         }
     };
@@ -316,7 +316,7 @@ async fn handle_grant_message(pool: &PgPool, msg: &sentin8::bus::contracts::Mess
     {
         Some(id) => id,
         None => {
-            tracing::warn!("fdx: grant:created without user_id — skipping");
+            tracing::warn!("fdx: grant:created without user_id - skipping");
             return;
         }
     };
@@ -358,7 +358,7 @@ async fn handle_grant_message(pool: &PgPool, msg: &sentin8::bus::contracts::Mess
     let scopes: Vec<String> = scope.split_whitespace().map(|s| s.to_string()).collect();
 
     // Same-transaction discipline (DESIGN.md §5): context + INSERT on one
-    // connection — the grant row is written under the PROVIDER env's RLS.
+    // connection - the grant row is written under the PROVIDER env's RLS.
     let mut tx = match pool.begin().await {
         Ok(t) => t,
         Err(e) => {
@@ -391,7 +391,7 @@ async fn handle_grant_message(pool: &PgPool, msg: &sentin8::bus::contracts::Mess
         .execute(&mut *tx)
         .await
     } else {
-        // No FDX handle in the state — a non-FDX client's grant. Record it
+        // No FDX handle in the state - a non-FDX client's grant. Record it
         // under the AS's grant id when present, else a fresh row.
         let row_id = grant_id
             .as_deref()
@@ -500,11 +500,11 @@ async fn handle_envinit_message(pool: &PgPool, msg: &sentin8::bus::contracts::Me
     };
 
     // VDC-2 consumer-side defense-in-depth: the event's first colon
-    // segment must match the recorded producer vertical (`sentin8`) —
+    // segment must match the recorded producer vertical (`sentin8`) -
     // Bus's produce-side ownership gate is the structural control; this
     // verifies the message Bus delivered before seeding tenant state.
     if let Err(reason) = sentin8::bus::client::BusClient::require_publisher(msg) {
-        tracing::warn!(reason = %reason, "fdx: untrusted publisher — skipping env-init");
+        tracing::warn!(reason = %reason, "fdx: untrusted publisher - skipping env-init");
         return;
     }
 
@@ -520,9 +520,9 @@ async fn handle_envinit_message(pool: &PgPool, msg: &sentin8::bus::contracts::Me
 }
 
 /// Copy fdx's `origin='platform'` policy sets from the SYSTEM-env
-/// substrate template into the given env — the vertical-DB mirror of what
+/// substrate template into the given env - the vertical-DB mirror of what
 /// Sentin8:Sys does for the platform DB at env creation. Idempotent
-/// (`ON CONFLICT DO NOTHING` — operator edits survive re-enable events).
+/// (`ON CONFLICT DO NOTHING` - operator edits survive re-enable events).
 async fn seed_env_policy_sets(pool: &PgPool, env_id: uuid::Uuid) -> anyhow::Result<()> {
     const SYSTEM_ENV_ID: uuid::Uuid = uuid::Uuid::from_u128(2);
     let mut tx = pool.begin().await?;
@@ -573,7 +573,7 @@ struct TenantSnapshot {
 
 /// The shared cert-presenting `bank8-fdx-sys` transport (built once per
 /// process, CERTFREE-4V): the workload certificate presents in the TLS
-/// handshake — Sys's TLS layer authenticates it and the enroll-published
+/// handshake - Sys's TLS layer authenticates it and the enroll-published
 /// registry map authorizes `sentin8:sys:tenants:read`. No M2M token
 /// exists on this path.
 async fn sys_snapshot_http() -> Result<reqwest::Client, String> {
@@ -595,9 +595,9 @@ async fn sys_snapshot_http() -> Result<reqwest::Client, String> {
 }
 
 /// Fetch the tenant snapshot from Sys (`GET /v1/tenants/{env_id}`) via the
-/// cert-presenting `bank8-fdx-sys` workload (CERTFREE-4V — no M2M token;
+/// cert-presenting `bank8-fdx-sys` workload (CERTFREE-4V - no M2M token;
 /// scope `sentin8:sys:tenants:read` rides the registry map).
-/// `Ok(None)` = 404 (env unknown or fdx not enabled there — scoped
+/// `Ok(None)` = 404 (env unknown or fdx not enabled there - scoped
 /// discovery); `Err` = transport/5xx (retryable).
 async fn fetch_tenant_snapshot(env_id: uuid::Uuid) -> Result<Option<TenantSnapshot>, String> {
     let cfg = sentin8::config::Sentin8Config::from_env();

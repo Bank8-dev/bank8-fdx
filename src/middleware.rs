@@ -99,14 +99,14 @@ fn scope_for_cluster(cluster: csdf::DataCluster) -> &'static str {
 /// Resolve the caller's consent scopes for CSDF minimization. Reads the
 /// latest active grant for the (caller env, token subject) pair (design
 /// §1/§4.2) and maps its scopes to a `CsdfFilter`. The grant ledger's
-/// `customer_id` IS the token `sub` — both are the provider's user id at
+/// `customer_id` IS the token `sub` - both are the provider's user id at
 /// code issuance (the AS event seeds the row from the authorized user), so
 /// a delegated recipient token and the bank's own customer token resolve
 /// the SAME grant row: the customer's grant governs what data may leave,
 /// regardless of which client presents a token for it.
 pub async fn consent_filter(state: &AppState, _a: &auth::AuthContext) -> CsdfFilter {
     // Same-transaction discipline (fdx DESIGN.md §5): context + lookup on
-    // one tx — a bare autocommit connection loses the transaction-local
+    // one tx - a bare autocommit connection loses the transaction-local
     // context and RLS answers with zero consent rows (→ 403 for every
     // provider data call).
     let Ok(mut conn) = state.pool.begin().await else {
@@ -127,14 +127,14 @@ pub async fn consent_filter(state: &AppState, _a: &auth::AuthContext) -> CsdfFil
     .and_then(|row| row.try_get::<Vec<String>, _>("scopes").ok())
     .unwrap_or_default();
     let _ = conn.commit().await;
-    // Platform admins are not exempt from consent enforcement — the FDX
+    // Platform admins are not exempt from consent enforcement - the FDX
     // provider API is consent-driven by design (§4.2).
     CsdfFilter::new(scopes)
 }
 
 /// Header-only convenience overload used by handlers that need the CSDF
 /// filter after `provider_authz` already verified the token. Verifies again
-/// (cheap — cached JWKS/discovery) so the helper is self-contained.
+/// (cheap - cached JWKS/discovery) so the helper is self-contained.
 pub async fn consent_filter_from_headers(
     state: &AppState,
     headers: &axum::http::HeaderMap,
@@ -186,7 +186,7 @@ pub async fn provider_middleware(
     let req_headers = parts.headers.clone();
 
     // 0. families declared out of scope (design §3.1) return the
-    // FDX-standard unsupported-operation response — never a silent stub.
+    // FDX-standard unsupported-operation response - never a silent stub.
     if crate::operations::is_out_of_scope_path(&path) {
         let mut r = crate::operations::unsupported_operation_response(&path);
         inject_interaction_id(&req_headers, r.headers_mut());
@@ -214,7 +214,7 @@ pub async fn provider_middleware(
     // 2. Token verification (the standard pipeline entry).
     let auth_result = auth::verify_token(&state.config, &req_headers).await;
 
-    // 3. Header extraction — echo/generate x-fapi-interaction-id on the
+    // 3. Header extraction - echo/generate x-fapi-interaction-id on the
     // response (design §8).
     let rebuilt = Request::from_parts(parts, Body::from(body_bytes));
 
@@ -229,7 +229,7 @@ pub async fn provider_middleware(
 
     inject_interaction_id(&req_headers, resp.headers_mut());
 
-    // 4. Audit append (best-effort) — design §9.
+    // 4. Audit append (best-effort) - design §9.
     if let Ok(a) = auth::verify_token(&state.config, &req_headers).await {
         let route = audit_route_name(&path);
         audit_data_call(&state.pool, a.env_id(), a.sub(), &route).await;

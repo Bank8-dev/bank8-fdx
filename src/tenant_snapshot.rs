@@ -10,14 +10,14 @@
 //! joins never existed in the vertical's own database (VDC-2) and always
 //! returned empty. The sanctioned on-demand read is Sys's tenant-snapshot
 //! API (`GET /v1/tenants/{env_id}`) via the cert-presenting
-//! `bank8-fdx-sys` workload (CERTFREE-4V — no M2M token; the scope
+//! `bank8-fdx-sys` workload (CERTFREE-4V - no M2M token; the scope
 //! `sentin8:sys:tenants:read` rides the enroll-published registry map).
 //! Same pattern as the ledger's `tenant_snapshot` module and the event
 //! consumer's `fetch_tenant_snapshot` (peers cannot share a crate).
 
 /// The env identity fields URL derivation needs (Sys
-/// `GET /v1/tenants/{env_id}` response). `Ok(None)` = 404 — the caller
-/// derives nothing (fail-closed); `Err` = transport/5xx — also fail-closed.
+/// `GET /v1/tenants/{env_id}` response). `Ok(None)` = 404 - the caller
+/// derives nothing (fail-closed); `Err` = transport/5xx - also fail-closed.
 pub async fn env_identity(env_id: uuid::Uuid) -> Result<Option<(String, String)>, String> {
     let cfg = sentin8::config::Sentin8Config::from_env();
     let ca_path = sentin8::auth::m2m::platform_ca_path();

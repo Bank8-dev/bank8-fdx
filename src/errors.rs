@@ -3,7 +3,7 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Bank8:FDX
 // SPDX-License-Identifier: Apache-2.0
 
-//! Story — FDX error responses.
+//! Story - FDX error responses.
 //! Standard FDX error format with error codes and HTTP status mappings.
 //! Integrates with Axum via `into_response `.
 

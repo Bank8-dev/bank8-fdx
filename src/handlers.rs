@@ -3,7 +3,7 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Bank8:FDX
 // SPDX-License-Identifier: Apache-2.0
 
-//! FDX HTTP handlers — consent service, provider API, recipient API.
+//! FDX HTTP handlers - consent service, provider API, recipient API.
 
 use std::sync::Arc;
 
@@ -25,7 +25,7 @@ use crate::errors::FdxErrorResponse;
 use crate::middleware::{self, consent_filter_from_headers, minimize_response};
 
 /// The fdx→ledger proxy transport (CERTFREE-8V): the boot-built
-/// `bank8-fdx-ledger` certificate-presenting client, or a loud error —
+/// `bank8-fdx-ledger` certificate-presenting client, or a loud error -
 /// the proxy NEVER degrades to an unauthenticated call.
 fn ledger_http(state: &AppState) -> Result<reqwest::Client, FdxErrorResponse> {
     state.config.ledger_http().cloned().ok_or_else(|| {
@@ -51,10 +51,10 @@ pub struct AppState {
     pub config: Arc<Fdx8Config>,
     pub pool: sqlx::PgPool,
     /// Shield policy engine : step 5 is the ONLY gate
-    /// handlers verify the token (steps 1–4) then evaluate a
+    /// handlers verify the token (steps 1-4) then evaluate a
     /// `bank8:fdx:<resource>:<action>` target; no JWT scope check remains.
     pub policy: Arc<crate::policy::Engine>,
-    /// Shared Sentin8:Policy admin surface (§3.6) — same engine
+    /// Shared Sentin8:Policy admin surface (§3.6) - same engine
     /// instance the request path evaluates.
     pub admin: sentin8::shield::admin::SharedAdminState,
     /// Bounded TTL cache behind `GET /fdx/v6/certification-metrics`
@@ -64,11 +64,11 @@ pub struct AppState {
     pub cert_metrics_cache: CertMetricsCache,
 }
 
-/// Bounded TTL cache for certification metrics (design §10) — same
+/// Bounded TTL cache for certification metrics (design §10) - same
 /// prune-on-insert eviction pattern as the ledger's `viewEffective`
 /// cache (RoleResolver lineage). Env-keyed, 30 s TTL, 1024 live entries.
 ///
-/// Manual `Clone` — `AppState` derives `Clone` for axum, and a
+/// Manual `Clone` - `AppState` derives `Clone` for axum, and a
 /// clone-behind-the-same-`Mutex` is the intended semantics (all clones
 /// share one cache, like the `Arc`-wrapped engine).
 #[derive(Default)]
@@ -154,7 +154,7 @@ pub struct ConsentResponse {
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
-/// `POST /v1/consents` — create a consent grant.
+/// `POST /v1/consents` - create a consent grant.
 #[utoipa::path(
     post,
     path = "/v1/consents",
@@ -179,7 +179,7 @@ pub async fn create_consent(
         sentin8::shield::EvalTarget::new("bank8:fdx:consents:write"),
     )
     .await?;
-    // Same-transaction discipline (fdx DESIGN.md §5) — see start_consent.
+    // Same-transaction discipline (fdx DESIGN.md §5) - see start_consent.
     let mut conn = state.pool.begin().await.map_err(err_db)?;
     set_tenant_context(&mut conn, a.env_id()).await;
     let expires_at = req
@@ -205,7 +205,7 @@ pub async fn create_consent(
     Ok(Json(consent))
 }
 
-/// `GET /v1/consents` — list consents.
+/// `GET /v1/consents` - list consents.
 #[utoipa::path(
     get,
     path = "/v1/consents",
@@ -231,7 +231,7 @@ pub async fn list_consents(
     )
     .await?;
     // Provider plane (two-ledger model, DESIGN.md §1): the grant ledger is
-    // THIS tenant's own table — the bank's consent dashboard (eBank app)
+    // THIS tenant's own table - the bank's consent dashboard (eBank app)
     // lists the grants the AS seeded. Same-transaction discipline (§5):
     // context + query on one tx.
     let mut conn = state.pool.begin().await.map_err(err_db)?;
@@ -257,7 +257,7 @@ pub struct ListConsentsQuery {
     pub customer_id: Option<Uuid>,
 }
 
-/// `GET /v1/consents/{id}` — consent detail.
+/// `GET /v1/consents/{id}` - consent detail.
 #[utoipa::path(
     get,
     path = "/v1/consents/{id}",
@@ -282,7 +282,7 @@ pub async fn get_consent(
         sentin8::shield::EvalTarget::new("bank8:fdx:consents:read"),
     )
     .await?;
-    // Same-transaction discipline (fdx DESIGN.md §5) — see list_consents.
+    // Same-transaction discipline (fdx DESIGN.md §5) - see list_consents.
     let mut conn = state.pool.begin().await.map_err(err_db)?;
     set_tenant_context(&mut conn, a.env_id()).await;
     let row = sqlx::query(
@@ -292,7 +292,7 @@ pub async fn get_consent(
     Ok(Json(row_to_consent(&row)))
 }
 
-/// `POST /v1/consents/{id}/revoke` — revoke a consent.
+/// `POST /v1/consents/{id}/revoke` - revoke a consent.
 #[utoipa::path(
     post,
     path = "/v1/consents/{id}/revoke",
@@ -317,7 +317,7 @@ pub async fn revoke_consent(
         sentin8::shield::EvalTarget::new("bank8:fdx:consents:write"),
     )
     .await?;
-    // Same-transaction discipline (fdx DESIGN.md §5) — see start_consent.
+    // Same-transaction discipline (fdx DESIGN.md §5) - see start_consent.
     let mut conn = state.pool.begin().await.map_err(err_db)?;
     set_tenant_context(&mut conn, a.env_id()).await;
     let row = sqlx::query(
@@ -338,11 +338,11 @@ pub async fn revoke_consent(
 
 // ── FDX Provider API (proxies to Ledger) ──────────────────────────────────
 
-/// `GET /fdx/v6/accounts` — search customer accounts (proxies to Ledger).
+/// `GET /fdx/v6/accounts` - search customer accounts (proxies to Ledger).
 /// The incoming Bearer (the bank's own customer token OR a delegated
-/// recipient token — both carry the provider customer as `sub`) is
+/// recipient token - both carry the provider customer as `sub`) is
 /// forwarded to Ledger, so RLS scopes the rows to the consenting
-/// customer either way (fdx DESIGN.md §1 — the consent grant keys on the
+/// customer either way (fdx DESIGN.md §1 - the consent grant keys on the
 /// token subject).
 #[utoipa::path(
     get,
@@ -383,7 +383,7 @@ pub async fn get_accounts(
     Ok(Json(minimize_response(&wrapped, &filter)))
 }
 
-/// `GET /fdx/v6/accounts/{accountId}` — account detail (proxies to Ledger).
+/// `GET /fdx/v6/accounts/{accountId}` - account detail (proxies to Ledger).
 #[utoipa::path(
     get,
     path = "/fdx/v6/accounts/{id}",
@@ -419,7 +419,7 @@ pub async fn get_account_detail(
     Ok(Json(minimize_response(&body, &filter)))
 }
 
-/// `GET /fdx/v6/accounts/{accountId}/transactions` — transactions (proxies
+/// `GET /fdx/v6/accounts/{accountId}/transactions` - transactions (proxies
 /// to Ledger; no hardcoded empty results).
 #[utoipa::path(
     get,
@@ -458,7 +458,7 @@ pub async fn get_account_transactions(
 
 // ── FDX consent introspection + revocation (design §5.1) ────────────────
 
-/// `GET /fdx/v6/consents/{consentId}` — consent grant introspection.
+/// `GET /fdx/v6/consents/{consentId}` - consent grant introspection.
 #[utoipa::path(
     get,
     path = "/fdx/v6/consents/{id}",
@@ -476,7 +476,7 @@ pub async fn get_fdx_consent(
     Path(consent_id): Path<Uuid>,
 ) -> Result<Json<serde_json::Value>, Response> {
     let _a = middleware::provider_authz(&state, &headers, None).await?;
-    // Same-transaction discipline (fdx DESIGN.md §5) — see start_consent.
+    // Same-transaction discipline (fdx DESIGN.md §5) - see start_consent.
     let mut conn = state
         .pool
         .begin()
@@ -526,14 +526,14 @@ pub async fn get_fdx_consent(
     }
 }
 
-/// `PUT /fdx/v6/consents/{consentId}/revocation` — consent revocation.
+/// `PUT /fdx/v6/consents/{consentId}/revocation` - consent revocation.
 pub async fn revoke_fdx_consent(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(consent_id): Path<Uuid>,
 ) -> Result<Json<serde_json::Value>, Response> {
     let a = middleware::provider_authz(&state, &headers, None).await?;
-    // Same-transaction discipline (fdx DESIGN.md §5) — see start_consent.
+    // Same-transaction discipline (fdx DESIGN.md §5) - see start_consent.
     let mut conn = state
         .pool
         .begin()
@@ -569,12 +569,12 @@ pub async fn revoke_fdx_consent(
 
 // ── Recipient API ───────────────────────────────────────────────────────
 
-/// `GET /v1/recipient/providers` — list FDX data providers from the
+/// `GET /v1/recipient/providers` - list FDX data providers from the
 /// `provider_profiles` registry.
 /// Provider profiles are auto-registered when an environment's
 /// `is_fdx_provider` flag is turned on (see Sys `update_env`), with the
 /// env's auth domain used as the issuer URL. The table has no RLS, so the
-/// catalog is visible cross-org — any recipient can discover and connect to
+/// catalog is visible cross-org - any recipient can discover and connect to
 /// any active provider. No static seed data is required.
 /// Response shape matches the eFintech recipient catalog contract:
 /// `{ "providers": [{ id, name, supportedDataClusters, status, ... }] }`,
@@ -601,7 +601,7 @@ pub async fn list_recipient_providers(
         sentin8::shield::EvalTarget::new("bank8:fdx:recipient:read"),
     )
     .await?;
-    // NOTE: no set_tenant_context — provider_profiles has no RLS, so this
+    // NOTE: no set_tenant_context - provider_profiles has no RLS, so this
     // returns all active providers across orgs (a global recipient catalog).
     let rows = sqlx::query(
         r#"SELECT id, provider_name, issuer_url, fdx_version, capabilities, status
@@ -642,7 +642,7 @@ pub async fn list_recipient_providers(
 
 // ── Provider API  ────────────────────────────────────
 
-/// `GET /fdx/v6/accounts/{accountId}/statements` — list statements (proxy to Ledger).
+/// `GET /fdx/v6/accounts/{accountId}/statements` - list statements (proxy to Ledger).
 #[utoipa::path(
     get,
     path = "/fdx/v6/accounts/{id}/statements",
@@ -679,7 +679,7 @@ pub async fn list_account_statements(
     Ok(Json(minimize_response(&wrapped, &filter)))
 }
 
-/// `GET /fdx/v6/accounts/{accountId}/payment-networks` — payment network info.
+/// `GET /fdx/v6/accounts/{accountId}/payment-networks` - payment network info.
 #[utoipa::path(
     get,
     path = "/fdx/v6/accounts/{id}/payment-networks",
@@ -716,7 +716,7 @@ pub async fn get_payment_networks(
     Ok(Json(minimize_response(&wrapped, &filter)))
 }
 
-/// `GET /fdx/v6/customers` — list customers (proxy to Ledger).
+/// `GET /fdx/v6/customers` - list customers (proxy to Ledger).
 #[utoipa::path(
     get,
     path = "/fdx/v6/customers",
@@ -749,7 +749,7 @@ pub async fn list_customers(
     Ok(Json(minimize_response(&wrapped, &filter)))
 }
 
-/// `GET /fdx/v6/customers/current` — current customer (proxy to Ledger).
+/// `GET /fdx/v6/customers/current` - current customer (proxy to Ledger).
 #[utoipa::path(
     get,
     path = "/fdx/v6/customers/current",
@@ -795,7 +795,7 @@ pub struct CreateTransferRequest {
     pub memo: Option<String>,
 }
 
-/// `POST /fdx/v6/transfers` — account transfer initiation (proxy to Payments).
+/// `POST /fdx/v6/transfers` - account transfer initiation (proxy to Payments).
 #[utoipa::path(
     post,
     path = "/fdx/v6/transfers",
@@ -849,7 +849,7 @@ pub struct CreatePaymentRequest {
     pub counterparty: Option<serde_json::Value>,
 }
 
-/// `POST /fdx/v6/payments` — payment initiation (proxy to Payments).
+/// `POST /fdx/v6/payments` - payment initiation (proxy to Payments).
 #[utoipa::path(
     post,
     path = "/fdx/v6/payments",
@@ -893,7 +893,7 @@ pub async fn create_payment(
     Ok(Json(body))
 }
 
-/// `GET /fdx/v6/capability` — provider capability metadata.
+/// `GET /fdx/v6/capability` - provider capability metadata.
 #[utoipa::path(
     get,
     path = "/fdx/v6/capability",
@@ -919,7 +919,7 @@ pub async fn get_capability() -> Json<serde_json::Value> {
     }))
 }
 
-/// `GET /fdx/v6/availability` — provider availability status.
+/// `GET /fdx/v6/availability` - provider availability status.
 #[utoipa::path(
     get,
     path = "/fdx/v6/availability",
@@ -938,9 +938,9 @@ pub async fn get_availability() -> Json<serde_json::Value> {
     }))
 }
 
-/// `GET /fdx/v6/certification-metrics` — certification metrics (design
-/// §10: counts over the tables this service already owns — `data_call*`
-/// rows in `audit_events` plus consent granted/revoked transitions —
+/// `GET /fdx/v6/certification-metrics` - certification metrics (design
+/// §10: counts over the tables this service already owns - `data_call*`
+/// rows in `audit_events` plus consent granted/revoked transitions -
 /// behind a short bounded cache; the rollup table + evidence admin page
 /// are the follow-on). The literal-zero stub is gone: these are real
 /// counters now.
@@ -971,7 +971,7 @@ pub async fn get_certification_metrics(
     if let Some(cached) = state.cert_metrics_cache.get(&cache_key) {
         return Ok(Json(cached));
     }
-    // Same-transaction discipline (fdx DESIGN.md §5) — see list_consents.
+    // Same-transaction discipline (fdx DESIGN.md §5) - see list_consents.
     let mut conn = state
         .pool
         .begin()
@@ -1016,7 +1016,7 @@ pub struct StartConsentRequest {
     pub app_redirect_uri: Option<String>,
 }
 
-/// `POST /v1/recipient/consents/start` — start consent authorization.
+/// `POST /v1/recipient/consents/start` - start consent authorization.
 /// The two-ledger recipient flow (fdx DESIGN.md §1 + §4 consent-flow
 /// sequence): the recipient-side fdx instance writes its OWN registry
 /// (a `pending` row in `recipient_consents`, in the recipient tenant),
@@ -1027,7 +1027,7 @@ pub struct StartConsentRequest {
 /// comes back to THIS instance's `/fdx/consents/callback` (the
 /// registered redirect_uri), which activates the row and exchanges the
 /// code. The provider's grant row is seeded by the provider's OWN
-/// auth-family consumer from `sentin8:auth:grant:created` — never by
+/// auth-family consumer from `sentin8:auth:grant:created` - never by
 /// this side.
 #[utoipa::path(
     post,
@@ -1054,12 +1054,12 @@ pub async fn start_consent(
     )
     .await?;
     // Same-transaction discipline (fdx DESIGN.md §5): the tenant context
-    // is transaction-local (`set_config(..., true)`) — it must live on
+    // is transaction-local (`set_config(..., true)`) - it must live on
     // the SAME tx as the INSERT, or the row lands with
     // `context_initialized=false` and FORCE-RLS rejects it.
     let mut conn = state.pool.begin().await.map_err(err_db)?;
     set_tenant_context(&mut conn, a.env_id()).await;
-    // The registry row lives in the RECIPIENT tenant — the fintech's own
+    // The registry row lives in the RECIPIENT tenant - the fintech's own
     // bookkeeping of its customer's connection (two-ledger model,
     // DESIGN.md §1). The consent handle (row id) rides the OAuth `state`
     // so the AS's grant event and the callback both resolve the flow.
@@ -1079,7 +1079,7 @@ pub async fn start_consent(
     let id: Uuid = sqlx::Row::get(&row, "id");
 
     // PKCE verifier (RFC 7636) is persisted here and consumed by the
-    // callback's token exchange — the recipient is the OAuth client, so
+    // callback's token exchange - the recipient is the OAuth client, so
     // token custody follows this verifier (DESIGN.md §1).
     let code_verifier = generate_pkce_verifier();
     sqlx::query("UPDATE recipient_consents SET code_verifier = $2 WHERE id = $1")
@@ -1091,7 +1091,7 @@ pub async fn start_consent(
     conn.commit().await.map_err(err_db)?;
 
     // Resolve the provider's issuer + display name from the catalog
-    // (provider_profiles — the cross-env recipient directory, no RLS).
+    // (provider_profiles - the cross-env recipient directory, no RLS).
     let profile_row = sqlx::query(
         r#"SELECT issuer_url, provider_name, env_id FROM provider_profiles
             WHERE status = 'active'
@@ -1196,7 +1196,7 @@ pub async fn start_consent(
     })))
 }
 
-/// Query params for `GET /fdx/consents/callback` — the OAuth callback after
+/// Query params for `GET /fdx/consents/callback` - the OAuth callback after
 /// the customer approves/denies consent at the provider's Auth.
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct ConsentCallbackQuery {
@@ -1220,7 +1220,7 @@ pub struct ConsentCallbackQuery {
     pub selected_account_ids: Option<String>,
 }
 
-/// `GET /fdx/consents/callback` — OAuth callback from Auth after consent.
+/// `GET /fdx/consents/callback` - OAuth callback from Auth after consent.
 /// Per the FDX design §4.3:
 /// 5. External provider redirects to Auth callback
 /// 6. Auth validates state, nonce, JARM
@@ -1332,7 +1332,7 @@ pub async fn consent_callback(
         .flatten();
 
     // Persist the customer's selected accounts on the registry row (they
-    // ride the authorize redirect as a comma-separated query param) — the
+    // ride the authorize redirect as a comma-separated query param) - the
     // recipient filters its account lists to the selection.
     if let Some(ref accounts_csv) = q.selected_account_ids {
         let selected: Vec<String> = accounts_csv
@@ -1356,7 +1356,7 @@ pub async fn consent_callback(
         }
     }
 
-    // Activate the registry row (idempotent — a repeated callback only
+    // Activate the registry row (idempotent - a repeated callback only
     // re-activates).
     if let Err(e) = sqlx::query(
         r#"UPDATE recipient_consents SET status = 'active', updated_at = now() WHERE id = $1"#,
@@ -1371,10 +1371,10 @@ pub async fn consent_callback(
     // ── Exchange the code for a delegated provider token ─────────────
     // The recipient is the OAuth client: PKCE verifier + DPoP key are
     // BOTH this institution's custody, and the tokens land on the
-    // registry row (secret references only — DESIGN.md §5).
+    // registry row (secret references only - DESIGN.md §5).
     if let Some(ref code) = q.code {
         if !provider_id.is_empty() {
-            // The provider profile (catalog — no RLS) carries the issuer.
+            // The provider profile (catalog - no RLS) carries the issuer.
             let profile_row = sqlx::query(
                 r#"SELECT issuer_url, env_id FROM provider_profiles
                     WHERE status = 'active'
@@ -1392,12 +1392,12 @@ pub async fn consent_callback(
                 .unwrap_or_default();
             if !provider_issuer.is_empty() && !client_id.is_empty() {
                 // The DPoP key lives on the recipient's per-provider
-                // client row (`fdx.recipients`) — sealed reference.
+                // client row (`fdx.recipients`) - sealed reference.
                 let dpop_key_pem: Option<String> =
                     load_recipient_dpop_key(&state, tls_env, &provider_id).await;
 
                 // Must match the PAR redirect_uri exactly (§4.3c): the
-                // RECIPIENT's env callback host — the same derivation the
+                // RECIPIENT's env callback host - the same derivation the
                 // DCR registration used.
                 let callback_url = own_env_callback_url(&state, tls_env).await;
 
@@ -1410,7 +1410,7 @@ pub async fn consent_callback(
                     ("redirect_uri".into(), callback_url),
                     ("client_id".into(), client_id),
                 ];
-                // PKCE (RFC 7636 §4.6) — public client must present the
+                // PKCE (RFC 7636 §4.6) - public client must present the
                 // verifier bound to the challenge sent at PAR time.
                 if let Some(ref v) = code_verifier {
                     if !v.is_empty() {
@@ -1418,7 +1418,7 @@ pub async fn consent_callback(
                     }
                 }
                 let token_req = if let Some(ref pem) = dpop_key_pem {
-                    // DPoP (RFC 9449) — required under fapi_2 require_dpop
+                    // DPoP (RFC 9449) - required under fapi_2 require_dpop
                     // for public non-exempt clients (auth design §3.4).
                     let htu = format!("{}/oauth/token", provider_issuer.trim_end_matches('/'));
                     match sentin8::auth::fapi::dpop_proof(
@@ -1436,7 +1436,7 @@ pub async fn consent_callback(
                                 .await
                         }
                         Err(e) => {
-                            tracing::warn!(error = %e, "bank8:fdx: DPoP proof generation failed — sending without proof");
+                            tracing::warn!(error = %e, "bank8:fdx: DPoP proof generation failed - sending without proof");
                             http.post(&token_url).form(&token_form).send().await
                         }
                     }
@@ -1452,7 +1452,7 @@ pub async fn consent_callback(
                             let expires_in = token_body["expires_in"].as_i64().unwrap_or(3600);
                             if !access_token.is_empty() {
                                 // Store both tokens as sentin8-secrets://
-                                // references (DESIGN.md §5) — never plaintext.
+                                // references (DESIGN.md §5) - never plaintext.
                                 match tokens::store_provider_tokens(
                                     &mut conn,
                                     consent_id,
@@ -1481,7 +1481,7 @@ pub async fn consent_callback(
         }
     }
 
-    // Commit — the activation tx spans the token exchange above and must
+    // Commit - the activation tx spans the token exchange above and must
     // be durable before the browser leaves via the redirect.
     let _ = conn.commit().await;
     let redirect = q.app_redirect_uri.unwrap_or(app_redirect);
@@ -1493,7 +1493,7 @@ pub async fn consent_callback(
     (StatusCode::FOUND, [("location", url)]).into_response()
 }
 
-/// `GET /v1/recipient/consents` — list active consents for the recipient.
+/// `GET /v1/recipient/consents` - list active consents for the recipient.
 /// Returns `{"consents": [...]}` (wrapped) so the eFintech app's
 /// FdxConsentsHook can parse `response.data['consents']`.
 #[utoipa::path(
@@ -1521,7 +1521,7 @@ pub async fn list_recipient_consents(
     )
     .await?;
     // The recipient registry is THIS tenant's own table (two-ledger
-    // model, DESIGN.md §1): same-env read under the caller's context —
+    // model, DESIGN.md §1): same-env read under the caller's context -
     // the fintech's Connections page lists its customers' connections.
     let mut conn = state.pool.begin().await.map_err(err_db)?;
     set_tenant_context(&mut conn, a.env_id()).await;
@@ -1557,7 +1557,7 @@ pub async fn list_recipient_consents(
     Ok(Json(serde_json::json!({ "consents": consents })))
 }
 
-/// `POST /v1/recipient/consents/{id}/refresh` — trigger data refresh.
+/// `POST /v1/recipient/consents/{id}/refresh` - trigger data refresh.
 #[utoipa::path(
     post,
     path = "/v1/recipient/consents/{id}/refresh",
@@ -1584,11 +1584,11 @@ pub async fn refresh_consent(
     )
     .await?;
     // Same-transaction discipline (fdx DESIGN.md §5): the registry row
-    // lives in THIS (recipient) tenant — context + read on one tx.
+    // lives in THIS (recipient) tenant - context + read on one tx.
     let mut conn = state.pool.begin().await.map_err(err_db)?;
     set_tenant_context(&mut conn, a.env_id()).await;
 
-    // Load the registry row (recipient_consents — the fintech's own
+    // Load the registry row (recipient_consents - the fintech's own
     // connection record; the delegated tokens are in the recipient's
     // custody, sealed as secret references).
     let reg_row = sqlx::query(
@@ -1631,7 +1631,7 @@ pub async fn refresh_consent(
             .ok()
             .flatten()
             .unwrap_or_default();
-        // The recipient client's DPoP key (`fdx.recipients` — sealed).
+        // The recipient client's DPoP key (`fdx.recipients` - sealed).
         let dpop_key_pem: Option<String> =
             load_recipient_dpop_key(&state, a.env_id(), &provider_id).await;
 
@@ -1733,7 +1733,7 @@ pub async fn refresh_consent(
     }
 }
 
-/// `POST /v1/recipient/consents/{id}/revoke` — revoke a recipient consent.
+/// `POST /v1/recipient/consents/{id}/revoke` - revoke a recipient consent.
 #[utoipa::path(
     post,
     path = "/v1/recipient/consents/{id}/revoke",
@@ -1794,11 +1794,11 @@ pub async fn revoke_recipient_consent(
 
     // Ask the PROVIDER to revoke its grant: the recipient calls the
     // provider's PUBLIC data-plane revocation surface
-    // (`POST /fdx/v6/consents/{id}/revocation` — the delegated subject's
+    // (`POST /fdx/v6/consents/{id}/revocation` - the delegated subject's
     // surface; the provider's enforcement makes revocation effective on
     // the next data call). The consent id IS the shared handle (it rode
     // the OAuth state and seeded the provider's grant row). Best-effort
-    // over HTTPS — a provider outage leaves the registry revoked and
+    // over HTTPS - a provider outage leaves the registry revoked and
     // the provider retrying on the next user action; the recipient's
     // tokens are simply not used anymore.
     if !provider_id.is_empty() {
@@ -1864,7 +1864,7 @@ pub struct ListRecipientAccountsQuery {
     pub consent_id: Option<Uuid>,
 }
 
-/// `GET /v1/recipient/accounts` — list consented accounts for the recipient.
+/// `GET /v1/recipient/accounts` - list consented accounts for the recipient.
 /// If `consent_id` is provided, returns only the accounts the customer
 /// selected during the provider's consent screen (per FDX UX Guidelines
 /// §3.1.6 "Select Accounts"). The account IDs are stored in
@@ -1955,10 +1955,10 @@ pub async fn list_recipient_accounts(
     let _ = conn.commit().await;
 
     // Resolve the provider's PUBLIC FDX data-plane host from the catalog
-    // (provider_profiles — no RLS): the recipient calls the provider's
+    // (provider_profiles - no RLS): the recipient calls the provider's
     // `/fdx/v6/*` API like any external recipient would, with the
     // delegated provider token. NEVER another institution's tables
-    // (DESIGN.md §1 — the cross-tenant direct-to-Ledger call is gone).
+    // (DESIGN.md §1 - the cross-tenant direct-to-Ledger call is gone).
     let profile_row = sqlx::query(
         r#"SELECT env_id FROM provider_profiles
             WHERE status = 'active'
@@ -1991,7 +1991,7 @@ pub async fn list_recipient_accounts(
 
     // Call the provider's PUBLIC accounts surface with the delegated
     // token. The provider plane enforces its own grant + CSDF
-    // minimization per request (middleware + consent_filter) — the
+    // minimization per request (middleware + consent_filter) - the
     // recipient receives exactly what the bank is allowed to release.
     let bearer = if !provider_token.is_empty() {
         format!("Bearer {}", provider_token)
@@ -2050,7 +2050,7 @@ pub async fn list_recipient_accounts(
     Ok(Json(serde_json::json!({ "accounts": accounts })))
 }
 
-/// `GET /v1/recipient/accounts/{id}/transactions` — recipient transaction history.
+/// `GET /v1/recipient/accounts/{id}/transactions` - recipient transaction history.
 #[utoipa::path(
     get,
     path = "/v1/recipient/accounts/{id}/transactions",
@@ -2091,7 +2091,7 @@ pub async fn get_recipient_account_transactions(
     Ok(Json(body))
 }
 
-/// `GET /v1/recipient/notifications` — notification feed for the recipient.
+/// `GET /v1/recipient/notifications` - notification feed for the recipient.
 #[utoipa::path(
     get,
     path = "/v1/recipient/notifications",
@@ -2120,7 +2120,7 @@ pub async fn list_notifications(
 
 // ── Admin API (Story ) ───────────────────────────────────────────
 
-/// `GET /v1/admin/provider-profile` — get provider profile.
+/// `GET /v1/admin/provider-profile` - get provider profile.
 #[utoipa::path(
     get,
     path = "/v1/admin/provider-profile",
@@ -2143,7 +2143,7 @@ pub async fn get_provider_profile(
         sentin8::shield::EvalTarget::new("bank8:fdx:provider:write"),
     )
     .await?;
-    // Same-transaction discipline (fdx DESIGN.md §5) — see list_consents.
+    // Same-transaction discipline (fdx DESIGN.md §5) - see list_consents.
     let mut conn = state.pool.begin().await.map_err(err_db)?;
     set_tenant_context(&mut conn, a.env_id()).await;
     let row = sqlx::query(
@@ -2172,7 +2172,7 @@ pub struct UpdateProviderProfileRequest {
     pub fdx_version: String,
 }
 
-/// `PUT /v1/admin/provider-profile` — update provider profile.
+/// `PUT /v1/admin/provider-profile` - update provider profile.
 #[utoipa::path(
     put,
     path = "/v1/admin/provider-profile",
@@ -2197,7 +2197,7 @@ pub async fn update_provider_profile(
         sentin8::shield::EvalTarget::new("bank8:fdx:provider:write"),
     )
     .await?;
-    // Same-transaction discipline (fdx DESIGN.md §5) — see start_consent.
+    // Same-transaction discipline (fdx DESIGN.md §5) - see start_consent.
     let mut conn = state.pool.begin().await.map_err(err_db)?;
     set_tenant_context(&mut conn, a.env_id()).await;
     let row = sqlx::query(
@@ -2216,7 +2216,7 @@ pub async fn update_provider_profile(
     Ok(Json(serde_json::json!({ "id": id, "status": "updated" })))
 }
 
-/// `GET /v1/admin/recipients` — list registered data recipients.
+/// `GET /v1/admin/recipients` - list registered data recipients.
 #[utoipa::path(
     get,
     path = "/v1/admin/recipients",
@@ -2239,7 +2239,7 @@ pub async fn list_recipients(
         sentin8::shield::EvalTarget::new("bank8:fdx:provider:write"),
     )
     .await?;
-    // Same-transaction discipline (fdx DESIGN.md §5) — see list_consents.
+    // Same-transaction discipline (fdx DESIGN.md §5) - see list_consents.
     let mut conn = state.pool.begin().await.map_err(err_db)?;
     set_tenant_context(&mut conn, a.env_id()).await;
     let rows = sqlx::query(
@@ -2259,7 +2259,7 @@ pub async fn list_recipients(
     Ok(Json(recipients))
 }
 
-/// `GET /v1/admin/consents` — consent overview (admin).
+/// `GET /v1/admin/consents` - consent overview (admin).
 #[utoipa::path(
     get,
     path = "/v1/admin/consents",
@@ -2279,7 +2279,7 @@ pub async fn list_all_consents(
     list_consents(State(state), headers, Query(q)).await
 }
 
-/// `GET /v1/admin/audit` — audit trail (admin).
+/// `GET /v1/admin/audit` - audit trail (admin).
 #[utoipa::path(
     get,
     path = "/v1/admin/audit",
@@ -2302,7 +2302,7 @@ pub async fn list_admin_audit(
         sentin8::shield::EvalTarget::new("bank8:fdx:provider:write"),
     )
     .await?;
-    // Same-transaction discipline (fdx DESIGN.md §5) — see list_consents.
+    // Same-transaction discipline (fdx DESIGN.md §5) - see list_consents.
     let mut conn = state.pool.begin().await.map_err(err_db)?;
     set_tenant_context(&mut conn, a.env_id()).await;
     let rows = sqlx::query(
@@ -2323,7 +2323,7 @@ pub async fn list_admin_audit(
     Ok(Json(entries))
 }
 
-/// `POST /v1/admin/recipients/{id}/activate` — activate a data recipient.
+/// `POST /v1/admin/recipients/{id}/activate` - activate a data recipient.
 #[utoipa::path(
     post,
     path = "/v1/admin/recipients/{id}/activate",
@@ -2349,7 +2349,7 @@ pub async fn activate_recipient(
         sentin8::shield::EvalTarget::new("bank8:fdx:provider:write"),
     )
     .await?;
-    // Same-transaction discipline (fdx DESIGN.md §5) — see start_consent.
+    // Same-transaction discipline (fdx DESIGN.md §5) - see start_consent.
     let mut conn = state.pool.begin().await.map_err(err_db)?;
     set_tenant_context(&mut conn, a.env_id()).await;
     let row = sqlx::query(
@@ -2371,7 +2371,7 @@ pub async fn activate_recipient(
     }
 }
 
-/// `POST /v1/admin/recipients/{id}/suspend` — suspend a data recipient.
+/// `POST /v1/admin/recipients/{id}/suspend` - suspend a data recipient.
 #[utoipa::path(
     post,
     path = "/v1/admin/recipients/{id}/suspend",
@@ -2397,7 +2397,7 @@ pub async fn suspend_recipient(
         sentin8::shield::EvalTarget::new("bank8:fdx:provider:write"),
     )
     .await?;
-    // Same-transaction discipline (fdx DESIGN.md §5) — see start_consent.
+    // Same-transaction discipline (fdx DESIGN.md §5) - see start_consent.
     let mut conn = state.pool.begin().await.map_err(err_db)?;
     set_tenant_context(&mut conn, a.env_id()).await;
     let row = sqlx::query(
@@ -2419,7 +2419,7 @@ pub async fn suspend_recipient(
     }
 }
 
-/// `GET /v1/recipient/providers/{id}` — get a specific FDX data provider.
+/// `GET /v1/recipient/providers/{id}` - get a specific FDX data provider.
 #[utoipa::path(
     get,
     path = "/v1/recipient/providers/{id}",
@@ -2481,7 +2481,7 @@ pub async fn get_recipient_provider(
     }
 }
 
-/// `GET /v1/recipient/consents/{id}` — get a specific recipient consent.
+/// `GET /v1/recipient/consents/{id}` - get a specific recipient consent.
 #[utoipa::path(
     get,
     path = "/v1/recipient/consents/{id}",
@@ -2543,7 +2543,7 @@ pub async fn get_recipient_consent(
 
 // ── Flow proxy-back (Story ) ────────────────────────────────────
 
-/// `POST /v1/internal/steps/execute` — Flow proxy-back for FDX domain steps.
+/// `POST /v1/internal/steps/execute` - Flow proxy-back for FDX domain steps.
 #[utoipa::path(
     post,
     path = "/v1/internal/steps/execute",
@@ -2605,7 +2605,7 @@ fn row_to_consent(row: &sqlx::postgres::PgRow) -> ConsentResponse {
 }
 
 fn err_db(e: sqlx::Error) -> (StatusCode, String) {
-    // Log the full error — previously only the status surfaced in service
+    // Log the full error - previously only the status surfaced in service
     // logs, making DB 500s undiagnosable.
     tracing::error!(error = %e, "bank8:fdx: database error");
     (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
@@ -2631,7 +2631,7 @@ async fn provider_env_fdx_base_url(
     service: &str,
 ) -> String {
     let cfg = sentin8::config::Sentin8Config::from_env();
-    // VDC §VDC.5 — the env identity (slug + org domain) is resolved
+    // VDC §VDC.5 - the env identity (slug + org domain) is resolved
     // through Sys's tenant-snapshot API (the sanctioned on-demand
     // cross-tenant read); the former cross-database
     // `sentin8.sys_environments` joins never existed in the vertical's
@@ -2639,11 +2639,11 @@ async fn provider_env_fdx_base_url(
     let (env_slug, org_domain) = match crate::tenant_snapshot::env_identity(provider_env_id).await {
         Ok(Some(pair)) => pair,
         Ok(None) => {
-            tracing::warn!(%provider_env_id, "fdx: provider env not found — no base URL");
+            tracing::warn!(%provider_env_id, "fdx: provider env not found - no base URL");
             return String::new();
         }
         Err(e) => {
-            tracing::warn!(error = %e, %provider_env_id, "fdx: provider env identity fetch failed — no base URL");
+            tracing::warn!(error = %e, %provider_env_id, "fdx: provider env identity fetch failed - no base URL");
             return String::new();
         }
     };
@@ -2654,12 +2654,12 @@ async fn provider_env_fdx_base_url(
     cfg.env_service_url(pool, service, &env_domain).await
 }
 
-/// Derive THIS instance's env callback URL — the redirect_uri the
+/// Derive THIS instance's env callback URL - the redirect_uri the
 /// recipient's OAuth client registers at the provider's AS and the exact
 /// string the PAR + token exchanges must echo (RFC 6749 exact match).
 /// Same derivation the env-init DCR registration uses (fdx DESIGN.md §1:
 /// the callback belongs to the RECIPIENT, so it derives from the
-/// recipient's own env identity — never the provider's).
+/// recipient's own env identity - never the provider's).
 async fn own_env_callback_url(state: &AppState, env_id: Uuid) -> String {
     let (env_slug, org_domain) = match crate::tenant_snapshot::env_identity(env_id).await {
         Ok(Some(pair)) => pair,
@@ -2682,7 +2682,7 @@ async fn own_env_callback_url(state: &AppState, env_id: Uuid) -> String {
 /// Ensure the RECIPIENT's per-provider OAuth client exists at the
 /// provider's authorization server (DCR, RFC 7591) and return
 /// `(client_id, callback_url)`. Cached in `fdx.recipients` per
-/// (recipient env, provider) — one public client per provider the
+/// (recipient env, provider) - one public client per provider the
 /// fintech connects to, exactly like a real third-party recipient
 /// registers at each bank. The registered redirect_uri is THIS env's
 /// callback host; the ES256 DPoP key for RFC 9449 proofs at that
@@ -2696,7 +2696,7 @@ async fn ensure_recipient_client(
     provider_issuer: &str,
 ) -> Result<(String, String), (StatusCode, String)> {
     // Same-env registry read (recipients is FORCE-RLS in the recipient
-    // tenant — the caller's context applies).
+    // tenant - the caller's context applies).
     let mut conn = state.pool.begin().await.map_err(err_db)?;
     set_tenant_context(&mut conn, env_id).await;
     let existing = sqlx::query(
@@ -2711,7 +2711,7 @@ async fn ensure_recipient_client(
     .map_err(err_db)?;
 
     // The redirect_uri registered at DCR time is the SAME string the PAR
-    // and token exchange echo — derive it once here.
+    // and token exchange echo - derive it once here.
     let callback_url = own_env_callback_url(state, env_id).await;
     if callback_url.is_empty() {
         return Err((
@@ -2732,7 +2732,7 @@ async fn ensure_recipient_client(
     }
 
     // Register a fresh public client (PKCE-only, token_endpoint_auth_method
-    // none) — the recipient's own identity at the provider's AS.
+    // none) - the recipient's own identity at the provider's AS.
     let scope =
         "bank8:fdx:accountbasic:read bank8:fdx:accountdetailed:read bank8:fdx:transactions:read";
     let dcr_req = serde_json::json!({
@@ -2779,7 +2779,7 @@ async fn ensure_recipient_client(
         ))?
         .to_string();
 
-    // Generate + seal the DPoP key for this (recipient, provider) client —
+    // Generate + seal the DPoP key for this (recipient, provider) client -
     // key material in the secrets backend, only the reference on the row.
     let pem = sentin8::auth::fapi::generate_dpop_key_pem().map_err(|e| {
         (
@@ -2869,12 +2869,12 @@ fn urlencoding(s: &str) -> String {
 }
 
 /// Append an event to the service's LOCAL outbox (DBX producer path,
-/// architecture-principles §6.7 — fdx design §12).
+/// architecture-principles §6.7 - fdx design §12).
 /// Inserts a `fdx.outbox` row that the shell's post-commit relay
 /// drains to Bus `POST /v1/produce` (idempotency_key = row id). Call this
 /// after the domain insert/update/delete succeeds. The outbox is
 /// FORCE-RLS'd; the pool helper sets the tenant context on its own
-/// connection. Errors are logged and ignored — the committed domain row
+/// connection. Errors are logged and ignored - the committed domain row
 /// stays authoritative and the relay retries from the outbox.
 pub(crate) async fn emit_event(
     pool: &sqlx::PgPool,

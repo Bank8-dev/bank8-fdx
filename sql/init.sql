@@ -3,25 +3,25 @@
 -- SPDX-FileCopyrightText: Copyright Contributors to the Bank8:FDX
 -- SPDX-License-Identifier: Apache-2.0
 
--- Bank8:FDX — the service's own schema `fdx` (schema-per-service):
+-- Bank8:FDX - the service's own schema `fdx` (schema-per-service):
 -- fdx_* domain tables + fdx.outbox / fdx.audit_journal producer tables,
 -- all FORCE-RLS env-scoped (provider_profiles is the public cross-env
--- catalog — no RLS by design).
+-- catalog - no RLS by design).
 --
 -- TWO LEDGERS (fdx DESIGN.md §1): the provider's GRANT ledger
--- (`fdx.consents` — seeded from sentin8:auth:grant:created) lives in the
+-- (`fdx.consents` - seeded from sentin8:auth:grant:created) lives in the
 -- provider tenant; the recipient's REGISTRY (`fdx.recipient_consents` +
 -- `fdx.recipients`) lives in the recipient tenant. The OAuth client
 -- belongs to the recipient; the delegated tokens belong to the recipient
 -- (it exchanges the code). No column on one side's tables references the
 -- other side's tenant identity beyond opaque OAuth handles.
 
--- The PROVIDER grant ledger — the data holder's statutory record of what
+-- The PROVIDER grant ledger - the data holder's statutory record of what
 -- the customer granted to which recipient (client_id). Seeded by the
 -- auth-family consumer from `sentin8:auth:grant:created` (consent handle
--- parsed from the OAuth `state`; the customer_id IS the token `sub` —
+-- parsed from the OAuth `state`; the customer_id IS the token `sub` -
 -- both are the provider's user id at code issuance). No token or PKCE
--- material here — those are the RECIPIENT's (client) custody.
+-- material here - those are the RECIPIENT's (client) custody.
 CREATE SCHEMA IF NOT EXISTS fdx;
 CREATE TABLE IF NOT EXISTS fdx.consents (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS fdx.consents (
 CREATE INDEX IF NOT EXISTS idx_fdx_consents_env ON fdx.consents (env_id);
 CREATE INDEX IF NOT EXISTS idx_fdx_consents_customer ON fdx.consents (customer_id);
 
--- Bank8:FDX consent resources — per-account grants within a consent.
+-- Bank8:FDX consent resources - per-account grants within a consent.
 -- Per FDX Consent API Specification v1.0 §4.2, a ConsentGrant enumerates
 -- the permissioned resources (accounts) with their data clusters. This
 -- table stores the per-account grants so the recipient API can filter
@@ -70,9 +70,9 @@ CREATE INDEX IF NOT EXISTS idx_fdx_consent_resources_consent
 CREATE INDEX IF NOT EXISTS idx_fdx_consent_resources_resource
     ON fdx.consent_resources (resource_type, resource_id);
 
--- Bank8:FDX provider profiles — the recipient-side directory of providers
+-- Bank8:FDX provider profiles - the recipient-side directory of providers
 -- (the cross-env catalog). Registered by env-init; the recipient app
--- lists providers from it. Carries NO recipient/OAuth-client material —
+-- lists providers from it. Carries NO recipient/OAuth-client material -
 -- the recipient's client is registered at the provider's AS by the
 -- recipient's own consent-start flow (fdx.recipients caches it).
 CREATE TABLE IF NOT EXISTS fdx.provider_profiles (
@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS fdx.provider_profiles (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_fdx_provider_profiles_env_name
     ON fdx.provider_profiles (env_id, provider_name);
 
--- Bank8:FDX recipient client registrations — the RECIPIENT's per-provider
+-- Bank8:FDX recipient client registrations - the RECIPIENT's per-provider
 -- OAuth client cache (two-ledger model, fdx DESIGN.md §1). One row per
 -- (recipient env, provider): the public client the recipient registered
 -- at the provider's authorization server via DCR (RFC 7591), the redirect
@@ -114,13 +114,13 @@ CREATE TABLE IF NOT EXISTS fdx.recipients (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_fdx_recipients_env_provider
     ON fdx.recipients (env_id, provider_id);
 
--- The RECIPIENT consent registry — the fintech's own bookkeeping of its
+-- The RECIPIENT consent registry - the fintech's own bookkeeping of its
 -- customers' bank connections (two-ledger model, fdx DESIGN.md §1).
 -- Written by the recipient-side consent-start (pending) and OAuth callback
 -- (active) surfaces; read by the fintech app's Connections/Accounts pages.
--- The PKCE verifier and delegated provider tokens live HERE — the recipient
+-- The PKCE verifier and delegated provider tokens live HERE - the recipient
 -- is the OAuth client, so token custody follows the verifier. Tokens are
--- stored as sentin8-secrets:// references — never plaintext.
+-- stored as sentin8-secrets:// references - never plaintext.
 CREATE TABLE IF NOT EXISTS fdx.recipient_consents (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     env_id  UUID NOT NULL,
@@ -178,14 +178,14 @@ DROP POLICY IF EXISTS consents_delete ON fdx.consents;
 CREATE POLICY consents_delete ON fdx.consents FOR DELETE
     USING (sentin8_context_initialized() AND env_id = sentin8_current_env_id());
 
--- fdx.consent_resources: no env_id — protected transitively via
+-- fdx.consent_resources: no env_id - protected transitively via
 -- fdx.consents (CASCADE FK). RLS is not needed (the parent table filters).
 -- No RLS on this table.
 
--- fdx.provider_profiles: explicitly NO RLS — it is a PUBLIC cross-env
+-- fdx.provider_profiles: explicitly NO RLS - it is a PUBLIC cross-env
 -- registry (the recipient catalog: any environment's caller discovers any
 -- active provider; fdx design §4.3c). The tenant-visibility FORCE-RLS pattern
--- must NOT apply here — with it, the cross-env catalog read saw nothing and
+-- must NOT apply here - with it, the cross-env catalog read saw nothing and
 -- the provider observation poll returned an empty list. The idempotent
 -- statements below REMOVE any policy a prior blanket pass may have applied
 -- (convergent on re-enroll).
@@ -210,7 +210,7 @@ DROP POLICY IF EXISTS recipients_delete ON fdx.recipients;
 CREATE POLICY recipients_delete ON fdx.recipients FOR DELETE
     USING (sentin8_context_initialized() AND env_id = sentin8_current_env_id());
 
--- fdx.recipient_consents: the RECIPIENT registry (two-ledger model) —
+-- fdx.recipient_consents: the RECIPIENT registry (two-ledger model) -
 -- same env-scoped FORCE-RLS pattern as the grant ledger; the recipient
 -- reads/writes ONLY its own tenant's connection rows.
 ALTER TABLE fdx.recipient_consents ENABLE ROW LEVEL SECURITY;
@@ -238,21 +238,21 @@ CREATE POLICY audit_events_insert ON fdx.audit_events FOR INSERT
     WITH CHECK (sentin8_context_initialized() AND (env_id IS NULL OR env_id = sentin8_current_env_id()));
 
 -- Holder-scoped RLS policies
--- ── FDX-COMPLETE epic (2026-09-06) — new tables ──────────────────────────
+-- ── FDX-COMPLETE epic (2026-09-06) - new tables ──────────────────────────
 -- FC-7: Consent revocation record (reason/initiator persisted per §5.1).
 -- FC-8: ConsentGrant lifecycle fields (durationType/durationPeriod/
 --       lookbackPeriod) as new columns on consents.
--- NOTE: new platform — no migration code. Columns are added to the
+-- NOTE: new platform - no migration code. Columns are added to the
 -- CREATE TABLE above in the canonical schema; re-run vertical init.
 -- (The CREATE TABLE in this file has been updated directly; this block
 --  documents the additions and creates the new tables.)
 
 -- FC-14: Notification subscriptions (event-notifications family §5.1a).
--- Secret is stored as a sentin8-secrets:// reference — never plaintext
+-- Secret is stored as a sentin8-secrets:// reference - never plaintext
 -- (AGENTS.md secret-references rule). Delivery is via Sentin8:Auth signed
 -- webhooks (design §5.1a): the delivery consumer posts the payload to the
 -- callback URL with `x-sentin8-signature: sha256=...` (HMAC-SHA256 of the
--- body with the subscription secret) — the same signing scheme as Auth's
+-- body with the subscription secret) - the same signing scheme as Auth's
 -- webhook relay (auth webhooks.rs relay_tick).
 CREATE TABLE IF NOT EXISTS fdx.notification_subscriptions (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -273,7 +273,7 @@ CREATE TABLE IF NOT EXISTS fdx.notification_subscriptions (
     )),
     callback_url    TEXT NOT NULL,
     subscriber      JSONB NOT NULL DEFAULT '{}',
-    -- HMAC secret reference (sentin8-secrets://...) — per-subscription
+    -- HMAC secret reference (sentin8-secrets://...) - per-subscription
     -- signing secret used by the delivery consumer.
     secret_ref      TEXT,
     status          TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'paused', 'deleted')),
@@ -382,7 +382,7 @@ DROP POLICY IF EXISTS pip_pm_delete ON fdx.pip_payment_methods;
 CREATE POLICY pip_pm_delete ON fdx.pip_payment_methods FOR DELETE
     USING (sentin8_context_initialized() AND env_id = sentin8_current_env_id());
 
--- FC-7: Consent revocation records (immutable — the revocation event).
+-- FC-7: Consent revocation records (immutable - the revocation event).
 CREATE TABLE IF NOT EXISTS fdx.consent_revocations (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     env_id  UUID NOT NULL,
@@ -432,11 +432,11 @@ CREATE POLICY pn_revocations_insert ON fdx.payment_network_revocations FOR INSER
 -- transaction as the domain change (or via the pool helper on handlers
 -- without an open transaction); the shell's post-commit relay pushes them
 -- to Bus POST /v1/produce (idempotency_key = row id).
--- Generated from sentin8-outbox::outbox_table_sql("fdx") — the outbox lives
+-- Generated from sentin8-outbox::outbox_table_sql("fdx") - the outbox lives
 -- in the service's OWN leaf schema (`fdx`), matching the relay's notify
 -- channel (`fdx_outbox_changed`) and the search_path-derived table
 -- resolution; the fdx_* domain tables live in the SAME schema `fdx`
--- (schema-per-service — the leaf schema is the service's primary schema).
+-- (schema-per-service - the leaf schema is the service's primary schema).
 CREATE TABLE IF NOT EXISTS fdx.outbox (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     env_id          UUID NOT NULL,
@@ -508,7 +508,7 @@ CREATE POLICY audit_journal_dml ON fdx.audit_journal
     USING (sentin8_context_initialized() AND env_id = sentin8_current_env_id())
     WITH CHECK (sentin8_context_initialized() AND env_id = sentin8_current_env_id());
 
--- ── Per-service role grants + search_path (F1 — §4.3e) ──────────────────
+-- ── Per-service role grants + search_path (F1 - §4.3e) ──────────────────
 -- The fdx service connects via its own PostgreSQL role (bank8_fdx_service,
 -- created + granted by `sentin8-cli vertical init/enroll` from this
 -- service's --print-registration --section=pg_roles). RLS only ENFORCES

@@ -1,8 +1,8 @@
-# Bank8:FDX — README
+# Bank8:FDX - README
 
 Open-banking data exchange (FDX v6.5): consent-managed account data
 sharing between a bank (data provider) and registered third-party data
-recipients — plus the money-movement read/cancel surface, event
+recipients - plus the money-movement read/cancel surface, event
 notifications, and the hosted consent UI.
 
 ## Summary
@@ -15,7 +15,7 @@ with CSDF data minimization, and serves the recipient-side surfaces
 hosted consent RFW screens. The provider and the recipient are
 independent organizations: the recipient registers its OAuth client
 at the provider's authorization server (DCR, RFC 7591), and each
-institution keeps its own consent records — the bank its grant
+institution keeps its own consent records - the bank its grant
 ledger (seeded from the AS's grant event), the fintech its connection
 registry.
 
@@ -58,40 +58,40 @@ graph TD
 
 ## Key Traits and Data Structures
 
-- `middleware` — the provider gate: FDX contract validation
+- `middleware` - the provider gate: FDX contract validation
   (`x-fapi-interaction-id`, request shape), per-request consent
   enforcement, and CSDF minimization; every `/fdx/v6/*` route passes
   through it.
-- `consent_records` — consent lifecycle: revocation records
+- `consent_records` - consent lifecycle: revocation records
   (reason/initiator/timestamp) and introspection-driven expiry fields.
-- `event_consumer` — the provider's grant-seed consumer: subscribes to
+- `event_consumer` - the provider's grant-seed consumer: subscribes to
   the `auth` family and creates grant rows from
   `sentin8:auth:grant:created` events (plus the sys-family env-init
   profile registration).
-- `event_notifications` — FDX notification delivery worker: pending
+- `event_notifications` - FDX notification delivery worker: pending
   `notifications` pushed to per-subscription callback URLs,
   HMAC-signed with the per-subscription secret.
-- `csdf` — Consent-scoped Data Filter: the minimization layer that
+- `csdf` - Consent-scoped Data Filter: the minimization layer that
   projects account data to exactly the granted data clusters.
 
 ## Rationale, Trade-offs, and Alternatives
 
-- **Consent check in middleware, not per-handler** — the provider
+- **Consent check in middleware, not per-handler** - the provider
   surface cannot grow a route that forgets the check; the RLS +
   middleware combination is the two-layer enforcement.
-- **Provider tokens as secret references** — the delegated tokens the
+- **Provider tokens as secret references** - the delegated tokens the
   recipient holds are never plaintext columns; only
   `sentin8-secrets://` references plus expiry metadata are stored.
-- **DPoP sender-constraining for delegated tokens** — the recipient's
+- **DPoP sender-constraining for delegated tokens** - the recipient's
   per-provider ES256 key mints RFC 9449 proofs for each token
   exchange at the provider's AS, mirroring the BFF FAPI pattern.
-- **Two ledgers, one ceremony** — the bank's grant ledger and the
+- **Two ledgers, one ceremony** - the bank's grant ledger and the
   fintech's connection registry are separate tables in separate
   environments kept in step by the same OAuth ceremony (the AS grant
-  event + the shared handle in the OAuth `state`) — instead of one
+  event + the shared handle in the OAuth `state`) - instead of one
   shared row both sides read across a tenant boundary, which would
   couple the institutions to one platform.
-- **Hosted consent RFW** — the consent screens are Remote Flutter
+- **Hosted consent RFW** - the consent screens are Remote Flutter
   Widget definitions served to auth-ui's consent host, so the customer
   sees the bank's consent UI inside the platform's OAuth flow instead of
   a recipient-embedded page.
@@ -99,15 +99,15 @@ graph TD
 ## Internal Implementation & Invariants
 
 - Every provider data call requires a valid, unexpired, unrevoked
-  consent whose scopes cover the requested cluster — enforced twice
+  consent whose scopes cover the requested cluster - enforced twice
   (middleware + RLS).
 - Data clusters outside the consent are stripped by the CSDF filter
   before serialization.
 - Out-of-scope FDX families return the FDX-standard unsupported-operation
-  response — never a silent stub.
+  response - never a silent stub.
 - All domain tables FORCE-RLS on `env_id`; provider profiles are
   env-scoped with secret-reference-only columns.
-- No SQL spans the provider and recipient environments — each side's
+- No SQL spans the provider and recipient environments - each side's
   instance reads and writes only its own tenant's tables.
 
 ## Unresolved Questions / Future Designs

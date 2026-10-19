@@ -120,6 +120,6 @@ use crate::handlers;
     security(),
     tags(
         (name = "policy", description = "Shield policy administration (shared surface)"),
-        (name = "fdx", description = "Bank8:FDX — open banking, FDX v6.5 provider/recipient"),
+        (name = "fdx", description = "Bank8:FDX - open banking, FDX v6.5 provider/recipient"),
     ),
 )]pub struct FdxOpenApi;

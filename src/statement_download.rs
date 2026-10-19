@@ -3,7 +3,7 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Bank8:FDX
 // SPDX-License-Identifier: Apache-2.0
 
-//! FDX v6.5 completion — statement download (design §5.1, storage §5.0a).
+//! FDX v6.5 completion - statement download (design §5.1, storage §5.0a).
 
 use axum::{
     extract::{Path, State},
@@ -18,7 +18,7 @@ use crate::errors::FdxErrorResponse;
 use crate::handlers::AppState;
 
 /// The proxy transport accessor (CERTFREE-8V): the boot-built
-/// certificate-presenting client, or a loud error — the proxy NEVER
+/// certificate-presenting client, or a loud error - the proxy NEVER
 /// degrades to an unauthenticated call.
 fn ledger_http(state: &AppState) -> Result<reqwest::Client, Response> {
     state
@@ -34,7 +34,7 @@ fn ledger_http(state: &AppState) -> Result<reqwest::Client, Response> {
 }
 use crate::middleware;
 
-/// `GET /fdx/v6/accounts/{accountId}/statements/{statementId}` — statement
+/// `GET /fdx/v6/accounts/{accountId}/statements/{statementId}` - statement
 /// download. The Ledger statement object lives in Sentin8:Storage at
 /// `buckets/statements/objects/{envId}/{accountId}/{statementId}.pdf`;
 /// this handler mints a short-lived read URL via the Storage link API and
@@ -101,7 +101,7 @@ pub async fn download_statement(
     } else {
         url.to_string()
     };
-    // 302 Found — URL returned via the Location header (spec §getAccountStatement).
+    // 302 Found - URL returned via the Location header (spec §getAccountStatement).
     Ok((StatusCode::FOUND, [("Location", absolute)]).into_response())
 }
 

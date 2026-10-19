@@ -13,7 +13,7 @@ use std::sync::Arc;
 /// auth DESIGN §4.3f): mint-or-load the Acme-issued pair and wrap it in
 /// a reqwest client. The receiving service's TLS layer authenticates the
 /// handshake and the enroll-published registry map authorizes the
-/// scopes — no bearer token exists on this path.
+/// scopes - no bearer token exists on this path.
 ///
 /// # Errors
 /// Returns the certificate-ensure or transport-build failure (the
@@ -40,18 +40,18 @@ pub async fn build_state(
     let mut config = crate::config::Fdx8Config::from_env();
 
     // The service's own workload transport (CERTFREE-4V): the
-    // `fdx` certificate presents in the TLS handshake — the
+    // `fdx` certificate presents in the TLS handshake - the
     // receiving service's TLS layer authenticates it and the registry
-    // map authorizes the scopes. Non-fatal on failure — the Flow
+    // map authorizes the scopes. Non-fatal on failure - the Flow
     // registration keeps the static dev token until the next boot.
     match build_workload_http(&config.sentin8_auth_issuer, "fdx").await {
         Ok(http) => config.m2m_http = Some(http),
         Err(e) => {
-            tracing::warn!(error = %e, "fdx workload transport unavailable — Flow registration degraded")
+            tracing::warn!(error = %e, "fdx workload transport unavailable - Flow registration degraded")
         }
     }
 
-    // CERTFREE-8V: the proxy lanes' cross-service workloads — the fdx→
+    // CERTFREE-8V: the proxy lanes' cross-service workloads - the fdx→
     // ledger reads and fdx→payments transfers/payments present their own
     // certificates (the static BANK8_*_TOKEN dev convention is retired;
     // the receiving gates resolve the workloads against the registry
@@ -59,13 +59,13 @@ pub async fn build_state(
     match build_workload_http(&config.sentin8_auth_issuer, "bank8-fdx-ledger").await {
         Ok(http) => config.ledger_http = Some(http),
         Err(e) => {
-            tracing::warn!(error = %e, "fdx ledger proxy transport unavailable — account/balance/transaction reads degraded")
+            tracing::warn!(error = %e, "fdx ledger proxy transport unavailable - account/balance/transaction reads degraded")
         }
     }
     match build_workload_http(&config.sentin8_auth_issuer, "bank8-fdx-payments").await {
         Ok(http) => config.payments_http = Some(http),
         Err(e) => {
-            tracing::warn!(error = %e, "fdx payments proxy transport unavailable — transfers/payments degraded")
+            tracing::warn!(error = %e, "fdx payments proxy transport unavailable - transfers/payments degraded")
         }
     }
     // ── Sentin8:Policy ──────────────────────────────
@@ -74,8 +74,8 @@ pub async fn build_state(
     // `policy` stream as a direct consumer (design §3.2); deny/would-deny
     // decisions emit to Stat (§4.2f). The engine is stored in AppState so
     // handlers gate via `policy::require` (step 5 is the ONLY gate).
-    // ── Sentin8:Policy (§4.2b — shell-owned boot): consume the
-    // engine the shell booted in step 8 — no second engine, consumer, or
+    // ── Sentin8:Policy (§4.2b - shell-owned boot): consume the
+    // engine the shell booted in step 8 - no second engine, consumer, or
     // DCR registration here.
     let policy_engine = core.admin.policy.clone();
 
@@ -96,9 +96,9 @@ pub async fn build_state(
     // registration rides the cert-presenting `fdx` transport when boot
     // minted it (Flow's certificate-first gate resolves the `fdx` workload
     // and its `sentin8:flow:write` scope); a missing transport degrades
-    // to the static dev token path (design §2 — Flow registration
+    // to the static dev token path (design §2 - Flow registration
     // contract). The body's `auth_token` is the proxy-back callback
-    // credential — the static dev token, inert on the cert path.
+    // credential - the static dev token, inert on the cert path.
     let cfg = state.config.clone();
     let self_url = format!("http://0.0.0.0:{}", cfg.port);
     let flow_token = cfg.sentin8_flow_token.clone();
@@ -118,7 +118,7 @@ pub async fn build_state(
         }
     }
     // Cert-presenting Bus client (CERTFREE-4V): the `fdx` workload
-    // CERTIFICATE is the identity — no DCR, no token (auth DESIGN
+    // CERTIFICATE is the identity - no DCR, no token (auth DESIGN
     // §4.3f); the mint retries while the fleet boots.
     let bus_client = loop {
         match sentin8::bus::client::BusClient::for_workload(
@@ -137,7 +137,7 @@ pub async fn build_state(
     };
     // Spawn the notification delivery worker: delivers pending
     // notifications to subscription callback URLs, HMAC-signed with the
-    // per-subscription secret (design §5.1a — Auth webhook signature scheme).
+    // per-subscription secret (design §5.1a - Auth webhook signature scheme).
     crate::event_notifications::spawn_notification_delivery(state.clone());
 
     // Spawn the Sentin8:Bus consumer for event-driven FDX provider registration.
@@ -151,10 +151,10 @@ pub async fn build_state(
 /// Add this service's routes onto the shell-provided router. The shell
 /// owns the boot sequence, state binding, OpenAPI merge and the standard
 /// middleware stack; this adds ONLY routes (including the service's own
-/// `/v1/health` — custom payload).
+/// `/v1/health` - custom payload).
 /// The `/fdx/v6/*` provider routes are mounted on their own sub-router with
 /// the provider middleware (contract validation, x-fapi-interaction-id,
-/// audit) as a route layer — non-provider routes bypass it.
+/// audit) as a route layer - non-provider routes bypass it.
 pub fn routes(
     router: axum::Router<crate::handlers::AppState>,
     state: crate::handlers::AppState,
@@ -271,7 +271,7 @@ pub fn routes(
                 .get(crate::event_notifications::list_notifications_feed),
         )
         // : revocation record (GET; PUT with body replaces the legacy
-        // no-body revoke route above — both wired, the body-bearing one wins).
+        // no-body revoke route above - both wired, the body-bearing one wins).
         .route(
             "/fdx/v6/consents/{id}/revocation",
             put(crate::consent_records::revoke_consent_with_record)
@@ -279,7 +279,7 @@ pub fn routes(
         )
         // : revocation by the delegated subject (the recipient plane calls
         // this with the delegated provider token after revoking its
-        // registry row — fdx DESIGN.md §4; POST alias of the PUT
+        // registry row - fdx DESIGN.md §4; POST alias of the PUT
         // revocation surface above for the RFW renderer + external
         // recipient clients).
         .route(
@@ -390,7 +390,7 @@ pub fn routes(
         )
         // Flow proxy-back
         .route("/v1/internal/steps/execute", post(handlers::execute_step))
-        // ── Sentin8:Policy admin API (§3.6 — shared
+        // ── Sentin8:Policy admin API (§3.6 - shared
         // implementation; handlers generic over this AppState).
         .route(
             "/v1/admin/policy-sets",
@@ -436,7 +436,7 @@ pub fn routes(
         )
 }
 
-/// Shared policy-admin surface accessor (§3.6) — the shared
+/// Shared policy-admin surface accessor (§3.6) - the shared
 /// handlers extract this service's admin state via [`HasPolicyAdmin`].
 impl sentin8::shield::admin::HasPolicyAdmin for handlers::AppState {
     fn policy_admin(&self) -> &sentin8::shield::admin::SharedAdminState {

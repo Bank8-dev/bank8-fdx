@@ -3,7 +3,7 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Bank8:FDX
 // SPDX-License-Identifier: Apache-2.0
 
-//! Sentin8 Fdx — library re-exports for integration tests.
+//! Sentin8 Fdx - library re-exports for integration tests.
 
 pub mod admin_ui;
 pub mod auth;

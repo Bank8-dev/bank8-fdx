@@ -3,7 +3,7 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Bank8:FDX
 // SPDX-License-Identifier: Apache-2.0
 
-//! FDX v6.5 completion — money-movement reads + payees proxy (design §5.1).
+//! FDX v6.5 completion - money-movement reads + payees proxy (design §5.1).
 
 use axum::{
     extract::{Path, State},
@@ -36,7 +36,7 @@ fn payments_http(state: &AppState) -> Result<reqwest::Client, Response> {
 use crate::handlers::{emit_event, AppState};
 use crate::middleware;
 
-/// `GET /fdx/v6/payments/{paymentId}` — payment status read (proxy to
+/// `GET /fdx/v6/payments/{paymentId}` - payment status read (proxy to
 /// Bank8:Payments `GET /v1/payments/{id}`).
 #[utoipa::path(
     get,
@@ -59,7 +59,7 @@ pub async fn get_payment(
     proxy_payments_get(&state, &format!("/v1/payments/{payment_id}")).await
 }
 
-/// `GET /fdx/v6/transfers/{transferId}` — transfer status read (proxy to
+/// `GET /fdx/v6/transfers/{transferId}` - transfer status read (proxy to
 /// Bank8:Payments).
 #[utoipa::path(
     get,
@@ -82,7 +82,7 @@ pub async fn get_transfer(
     proxy_payments_get(&state, &format!("/v1/transfers/{transfer_id}")).await
 }
 
-/// `PATCH /fdx/v6/transfers/{transferId}` — update a transfer (amount/due
+/// `PATCH /fdx/v6/transfers/{transferId}` - update a transfer (amount/due
 /// date where the scheme allows; proxies Bank8:Payments).
 #[utoipa::path(
     patch,
@@ -120,7 +120,7 @@ pub async fn update_transfer(
     Ok(Json(body))
 }
 
-/// `DELETE /fdx/v6/transfers/{transferId}` — cancel a transfer (spec
+/// `DELETE /fdx/v6/transfers/{transferId}` - cancel a transfer (spec
 /// `cancelTransfer`; proxies Bank8:Payments cancel where the scheme allows).
 #[utoipa::path(
     delete,
@@ -187,7 +187,7 @@ pub(crate) async fn proxy_payments_get(
     Ok(Json(body))
 }
 
-/// `GET /fdx/v6/payees` — payee search/list (proxy to Bank8:Payments
+/// `GET /fdx/v6/payees` - payee search/list (proxy to Bank8:Payments
 /// `GET /v1/payees`).
 #[utoipa::path(
     get,
@@ -209,7 +209,7 @@ pub async fn list_payees(
     proxy_payments_get(&state, "/v1/payees").await
 }
 
-/// `POST /fdx/v6/payees` — create a payee (proxy to Bank8:Payments).
+/// `POST /fdx/v6/payees` - create a payee (proxy to Bank8:Payments).
 #[utoipa::path(
     post,
     path = "/fdx/v6/payees",
@@ -242,7 +242,7 @@ pub async fn create_payee(
     Ok(Json(body))
 }
 
-/// `PUT /fdx/v6/payees/{payeeId}` — update a payee (proxy to Bank8:Payments).
+/// `PUT /fdx/v6/payees/{payeeId}` - update a payee (proxy to Bank8:Payments).
 #[utoipa::path(
     put,
     path = "/fdx/v6/payees/{payeeId}",

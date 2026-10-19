@@ -16,38 +16,38 @@ pub struct Fdx8Config {
     pub database_url: String,
     pub sentin8_auth_issuer: String,
     pub sentin8_auth_jwks_url: String,
-    /// FDX's own external URL (e.g. https://bank8-fdx.ops.sys.sentin8.local) — used for
+    /// FDX's own external URL (e.g. https://bank8-fdx.ops.sys.sentin8.local) - used for
     /// consent authorize URLs that FDX serves itself.
     pub fdx_base_url: String,
     pub ledger_url: String,
     /// Certificate-presenting transport for the fdx→ledger proxy calls
-    /// (workload `bank8-fdx-ledger`; CERTFREE-8V — no static token).
+    /// (workload `bank8-fdx-ledger`; CERTFREE-8V - no static token).
     pub ledger_http: Option<reqwest::Client>,
     pub payments_url: String,
     /// Certificate-presenting transport for the fdx→payments proxy calls
-    /// (workload `bank8-fdx-payments`; CERTFREE-8V — no static token).
+    /// (workload `bank8-fdx-payments`; CERTFREE-8V - no static token).
     pub payments_http: Option<reqwest::Client>,
     pub sentin8_bus_url: String,
     pub stream_family: String,
-    /// Story — Stat config for FDX telemetry.
+    /// Story - Stat config for FDX telemetry.
     pub sentin8_stat_url: String,
     pub sentin8_stat_property_id: uuid::Uuid,
-    /// Story — Flow integration for consent workflows.
+    /// Story - Flow integration for consent workflows.
     pub sentin8_flow_url: String,
     pub sentin8_flow_token: String,
     /// Certificate-presenting transport for the service's own workload
-    /// identity (CERTFREE-4V — no M2M token exists): the `fdx`
-    /// certificate presents in the TLS handshake — the receiving
+    /// identity (CERTFREE-4V - no M2M token exists): the `fdx`
+    /// certificate presents in the TLS handshake - the receiving
     /// service's TLS layer authenticates it and the enroll-published
     /// registry map authorizes the scopes.
     pub m2m_http: Option<reqwest::Client>,
-    /// Shared Auth client — constructed once so the discovery and JWKS
+    /// Shared Auth client - constructed once so the discovery and JWKS
     /// caches are reused across every request (5-minute TTL each).
     /// Cloning is cheap (the caches live behind an `Arc`).
     pub sentin8_auth_client: AuthClient,
 }
 
-/// Manual `Debug` — never logs the transport internals.
+/// Manual `Debug` - never logs the transport internals.
 impl std::fmt::Debug for Fdx8Config {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Fdx8Config")
@@ -108,9 +108,9 @@ impl Fdx8Config {
     }
 
     /// Certificate-presenting transport for the service's own `fdx`
-    /// workload (CERTFREE-4V — no M2M token exists). Set at startup by
+    /// workload (CERTFREE-4V - no M2M token exists). Set at startup by
     /// `server::build_state` (the Flow step-handler registration rides
-    /// it — Flow's certificate-first gate resolves the `fdx` workload);
+    /// it - Flow's certificate-first gate resolves the `fdx` workload);
     /// `None` until then (the registration keeps the static dev token).
     pub fn m2m_http(&self) -> Option<&reqwest::Client> {
         self.m2m_http.as_ref()
@@ -118,7 +118,7 @@ impl Fdx8Config {
 
     /// Certificate-presenting transport for the fdx→ledger proxy
     /// (workload `bank8-fdx-ledger`; CERTFREE-8V). `None` until the
-    /// boot mint succeeds — the proxy lanes 503 loudly rather than
+    /// boot mint succeeds - the proxy lanes 503 loudly rather than
     /// degrading to an unauthenticated call.
     pub fn ledger_http(&self) -> Option<&reqwest::Client> {
         self.ledger_http.as_ref()

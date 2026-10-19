@@ -3,7 +3,7 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Bank8:FDX
 // SPDX-License-Identifier: Apache-2.0
 
-//! Story — Flow integration for FDX consent workflows.
+//! Story - Flow integration for FDX consent workflows.
 //! FDX implements `POST /v1/internal/steps/execute` for FDX-specific step
 //! types and registers its step handler profile with Flow.
 
@@ -140,7 +140,7 @@ pub fn execute_step(req: &ProxyBackRequest) -> ProxyBackResponse {
 }
 
 /// Register FDX's step handler profile with Flow via `POST /v1/handlers/register`.
-/// The call rides the cert-presenting `fdx` transport (CERTFREE-4V — Flow's
+/// The call rides the cert-presenting `fdx` transport (CERTFREE-4V - Flow's
 /// certificate-first gate resolves the `fdx` workload and its
 /// `sentin8:flow:write` scope); `Some(http)` falls back to a plain client
 /// with the static bearer when boot has not minted the transport yet.
@@ -159,7 +159,7 @@ pub async fn register_with_flow(
         "step_kinds" : ["ConsentValidationStep", "DataRefreshStep"],
     });
     let (http, bearer) = match flow_http {
-        // Cert path: the TLS handshake IS the identity — no bearer.
+        // Cert path: the TLS handshake IS the identity - no bearer.
         Some(c) => (c, None),
         // Boot fallback (CERTFREE-4V): plain transport + the static dev
         // bearer until the workload pair is minted.
@@ -188,7 +188,7 @@ pub async fn register_with_flow(
 mod tests {
     use super::*;
 
-    /// Install the Graviola PQ crypto provider once — reqwest panics with
+    /// Install the Graviola PQ crypto provider once - reqwest panics with
     /// "No provider set" when a client is built without one.
     fn install_provider() {
         use std::sync::Once;

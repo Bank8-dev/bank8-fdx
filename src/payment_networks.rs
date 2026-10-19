@@ -3,7 +3,7 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Bank8:FDX
 // SPDX-License-Identifier: Apache-2.0
 
-//! FDX v6.5 completion — payment-network detail + revocation (design §5.1).
+//! FDX v6.5 completion - payment-network detail + revocation (design §5.1).
 
 use axum::{
     extract::{Path, State},
@@ -23,7 +23,7 @@ use crate::errors::FdxErrorResponse;
 use crate::handlers::{emit_event, AppState};
 
 /// The proxy transport accessor (CERTFREE-8V): the boot-built
-/// certificate-presenting client, or a loud error — the proxy NEVER
+/// certificate-presenting client, or a loud error - the proxy NEVER
 /// degrades to an unauthenticated call.
 fn ledger_http(state: &AppState) -> Result<reqwest::Client, Response> {
     state
@@ -93,7 +93,7 @@ pub async fn get_payment_network(
     Ok(Json(serde_json::json!({ "paymentNetworks": matched })))
 }
 
-/// The FDX RevocationRequest (reason/initiator/otherReason) — shared by the
+/// The FDX RevocationRequest (reason/initiator/otherReason) - shared by the
 /// payment-network revocation and the consent revocation record
 /// (see `consent_records.rs`).
 #[derive(Debug, Deserialize, ToSchema)]
@@ -133,7 +133,7 @@ pub fn validate_revocation(req: &RevocationRequest) -> Result<(), Response> {
 }
 
 /// `PUT /fdx/v6/accounts/{accountId}/payment-networks/{paymentNetworkId}/revocation`
-/// — revoke the payment network identifier (; persists the revocation
+/// - revoke the payment network identifier (; persists the revocation
 /// record and answers 204 No Content per spec).
 #[utoipa::path(
     put,
@@ -154,7 +154,7 @@ pub async fn revoke_payment_network(
 ) -> Result<StatusCode, Response> {
     let a = middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
     validate_revocation(&req)?;
-    // Same-transaction discipline (fdx DESIGN.md §5) — see start_consent.
+    // Same-transaction discipline (fdx DESIGN.md §5) - see start_consent.
     let mut conn = state.pool.begin().await.map_err(db_err)?;
     set_tenant_context(&mut conn, a.env_id()).await;
     sqlx::query(
@@ -182,7 +182,7 @@ pub async fn revoke_payment_network(
 }
 
 /// `GET /fdx/v6/accounts/{accountId}/payment-networks/{paymentNetworkId}/revocation`
-/// — revocation lifecycle events for the identifier.
+/// - revocation lifecycle events for the identifier.
 #[utoipa::path(
     get,
     path = "/fdx/v6/accounts/{id}/payment-networks/{paymentNetworkId}/revocation",
@@ -201,7 +201,7 @@ pub async fn get_payment_network_revocations(
 ) -> Result<Json<JsonValue>, Response> {
     let _a =
         middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
-    // Same-transaction discipline (fdx DESIGN.md §5) — see start_consent.
+    // Same-transaction discipline (fdx DESIGN.md §5) - see start_consent.
     let mut conn = state.pool.begin().await.map_err(db_err)?;
     set_tenant_context(&mut conn, _a.env_id()).await;
     let rows = sqlx::query(

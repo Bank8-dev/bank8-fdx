@@ -10,7 +10,7 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/Bank8-dev/bank8-fdx"
 rust-version = "1.85"
-description = "Sentin8 Bank8:FDX — open banking, FDX v6.5 provider/recipient."
+description = "Sentin8 Bank8:FDX - open banking, FDX v6.5 provider/recipient."
 
 [[bin]]
 name = "bank8-fdx"

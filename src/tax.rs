@@ -3,7 +3,7 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Bank8:FDX
 // SPDX-License-Identifier: Apache-2.0
 
-//! Story — Tax service (tax forms, tax QR, tax PDF).
+//! Story - Tax service (tax forms, tax QR, tax PDF).
 //! All operations are stubs returning placeholder data. In production these
 //! will be backed by a tax document store and rendering pipeline.
 
@@ -25,12 +25,12 @@ pub async fn get_tax_forms(_customer_id: Uuid) -> Result<Vec<TaxForm>, String> {
     Ok(vec![])
 }
 
-/// Generate a QR code for a tax form (stub — returns a placeholder string).
+/// Generate a QR code for a tax form (stub - returns a placeholder string).
 pub async fn generate_tax_qr(form_id: Uuid) -> Result<String, String> {
     Ok(format!("fdx-tax-qr:{}", form_id))
 }
 
-/// Generate a PDF for a tax form (stub — returns placeholder bytes).
+/// Generate a PDF for a tax form (stub - returns placeholder bytes).
 pub async fn generate_tax_pdf(form_id: Uuid) -> Result<Vec<u8>, String> {
     Ok(format!("%PDF-1.4 stub for {}\n%%EOF\n", form_id).into_bytes())
 }

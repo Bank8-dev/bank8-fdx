@@ -3,8 +3,8 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Bank8:FDX
 // SPDX-License-Identifier: Apache-2.0
 
-//! FDX v6.5 completion — / notification subscriptions, feed, and
-//! the HMAC-signed webhook delivery consumer (design §5.1a — carrier is the
+//! FDX v6.5 completion - / notification subscriptions, feed, and
+//! the HMAC-signed webhook delivery consumer (design §5.1a - carrier is the
 //! Sentin8:Auth signed-webhook scheme).
 //! Note: the sibling `notifications.rs` module holds the Story
 //! recipient-side notification stubs; this module holds the provider-side
@@ -84,9 +84,9 @@ pub fn is_https_url_valid(url: &str) -> bool {
     url.starts_with("https://") && url.len() > "https://".len()
 }
 
-/// `POST /fdx/v6/notification-subscriptions` — create a subscription
+/// `POST /fdx/v6/notification-subscriptions` - create a subscription
 /// /. The per-subscription HMAC secret is generated here and
-/// stored as a sentin8-secrets:// reference — never plaintext.
+/// stored as a sentin8-secrets:// reference - never plaintext.
 #[utoipa::path(
     post,
     path = "/fdx/v6/notification-subscriptions",
@@ -111,7 +111,7 @@ pub async fn create_notification_subscription(
             FdxErrorResponse::bad_request("callbackUrl must be an https URL").into_response(),
         );
     }
-    // Same-transaction discipline (fdx DESIGN.md §5) — see start_consent.
+    // Same-transaction discipline (fdx DESIGN.md §5) - see start_consent.
     let mut conn = state.pool.begin().await.map_err(db_err)?;
     set_tenant_context(&mut conn, a.env_id()).await;
     // Generate a per-subscription signing secret and store it by reference.
@@ -165,7 +165,7 @@ async fn store_subscription_secret(
         .map_err(|e| FdxErrorResponse::internal(format!("secret store: {e}")))
 }
 
-/// `GET /fdx/v6/notification-subscriptions` — list subscriptions.
+/// `GET /fdx/v6/notification-subscriptions` - list subscriptions.
 #[utoipa::path(
     get,
     path = "/fdx/v6/notification-subscriptions",
@@ -182,7 +182,7 @@ pub async fn list_notification_subscriptions(
     headers: HeaderMap,
 ) -> Result<Json<JsonValue>, Response> {
     let a = middleware::provider_authz(&state, &headers, None).await?;
-    // Same-transaction discipline (fdx DESIGN.md §5) — see start_consent.
+    // Same-transaction discipline (fdx DESIGN.md §5) - see start_consent.
     let mut conn = state.pool.begin().await.map_err(db_err)?;
     set_tenant_context(&mut conn, a.env_id()).await;
     let rows = sqlx::query(
@@ -213,7 +213,7 @@ pub async fn list_notification_subscriptions(
     ))
 }
 
-/// `GET /fdx/v6/notification-subscriptions/{subscriptionId}` — detail.
+/// `GET /fdx/v6/notification-subscriptions/{subscriptionId}` - detail.
 #[utoipa::path(
     get,
     path = "/fdx/v6/notification-subscriptions/{subscriptionId}",
@@ -231,7 +231,7 @@ pub async fn get_notification_subscription(
     Path(sub_id): Path<Uuid>,
 ) -> Result<Json<JsonValue>, Response> {
     let a = middleware::provider_authz(&state, &headers, None).await?;
-    // Same-transaction discipline (fdx DESIGN.md §5) — see start_consent.
+    // Same-transaction discipline (fdx DESIGN.md §5) - see start_consent.
     let mut conn = state.pool.begin().await.map_err(db_err)?;
     set_tenant_context(&mut conn, a.env_id()).await;
     let row = sqlx::query(
@@ -255,7 +255,7 @@ pub async fn get_notification_subscription(
     })))
 }
 
-/// `DELETE /fdx/v6/notification-subscriptions/{subscriptionId}` — delete a
+/// `DELETE /fdx/v6/notification-subscriptions/{subscriptionId}` - delete a
 /// subscription (; soft delete + release the secret reference).
 #[utoipa::path(
     delete,
@@ -274,7 +274,7 @@ pub async fn delete_notification_subscription(
     Path(sub_id): Path<Uuid>,
 ) -> Result<StatusCode, Response> {
     let a = middleware::provider_authz(&state, &headers, None).await?;
-    // Same-transaction discipline (fdx DESIGN.md §5) — see start_consent.
+    // Same-transaction discipline (fdx DESIGN.md §5) - see start_consent.
     let mut conn = state.pool.begin().await.map_err(db_err)?;
     set_tenant_context(&mut conn, a.env_id()).await;
     let updated = sqlx::query(
@@ -318,7 +318,7 @@ pub struct PublishNotificationRequest {
     pub payload: JsonValue,
 }
 
-/// `POST /fdx/v6/notifications` — inbound notification ingest (
+/// `POST /fdx/v6/notifications` - inbound notification ingest (
 /// `fdx:notifications:publish`). Records the notification, queues it for
 /// delivery to matching subscriptions, and emits the Bus event the
 /// delivery consumer reacts to.
@@ -339,7 +339,7 @@ pub async fn publish_notification(
     Json(req): Json<PublishNotificationRequest>,
 ) -> Result<Json<JsonValue>, Response> {
     let a = middleware::provider_authz(&state, &headers, None).await?;
-    // Same-transaction discipline (fdx DESIGN.md §5) — see start_consent.
+    // Same-transaction discipline (fdx DESIGN.md §5) - see start_consent.
     let mut conn = state.pool.begin().await.map_err(db_err)?;
     set_tenant_context(&mut conn, a.env_id()).await;
     let row = sqlx::query(
@@ -373,7 +373,7 @@ pub async fn publish_notification(
     })))
 }
 
-/// `GET /fdx/v6/notifications` — notification feed (polling alternative to
+/// `GET /fdx/v6/notifications` - notification feed (polling alternative to
 /// webhook delivery; ).
 #[utoipa::path(
     get,
@@ -392,7 +392,7 @@ pub async fn list_notifications_feed(
     Query(q): Query<FeedQuery>,
 ) -> Result<Json<JsonValue>, Response> {
     let a = middleware::provider_authz(&state, &headers, None).await?;
-    // Same-transaction discipline (fdx DESIGN.md §5) — see start_consent.
+    // Same-transaction discipline (fdx DESIGN.md §5) - see start_consent.
     let mut conn = state.pool.begin().await.map_err(db_err)?;
     set_tenant_context(&mut conn, a.env_id()).await;
     let rows = sqlx::query(
@@ -431,13 +431,13 @@ pub struct FeedQuery {
 }
 
 /// Queue a CONSENT_REVOKED notification for every active subscription
-/// (called from `consent_records.rs` on consent revocation — , §5.1a).
+/// (called from `consent_records.rs` on consent revocation - , §5.1a).
 pub(crate) async fn queue_consent_revoked_notification(
     state: &AppState,
     env_id: Uuid,
     consent_id: Uuid,
 ) {
-    // Same-transaction discipline (fdx DESIGN.md §5) — subscription lookup
+    // Same-transaction discipline (fdx DESIGN.md §5) - subscription lookup
     // + notification queueing share one tx with the context set.
     let Ok(mut conn) = state.pool.begin().await else {
         tracing::warn!("fdx: revocation notification queue failed");
@@ -516,7 +516,7 @@ pub fn sign_delivery(secret: &str, body: &[u8]) -> String {
 }
 
 /// Resolve a sentin8-secrets:// reference to the secret material via the
-/// local file-backed vault (same backend LocalFileSecrets writes — the
+/// local file-backed vault (same backend LocalFileSecrets writes - the
 /// env-configured secrets directory).
 fn load_subscription_secret(state: &AppState, secret_ref: &str) -> Option<String> {
     let _ = state; // resolver is env-configured; state kept for future DI
@@ -532,7 +532,7 @@ fn resolver_base() -> String {
 /// Spawn the notification delivery consumer: a polling worker that picks up
 /// `pending` notifications with a matching active subscription and delivers
 /// them to the callback URL, HMAC-signed with the per-subscription secret
-/// (design §5.1a — carrier is the signed-webhook scheme, same signature
+/// (design §5.1a - carrier is the signed-webhook scheme, same signature
 /// format as Sentin8:Auth's webhook relay). Called once from `server::serve`.
 pub fn spawn_notification_delivery(state: AppState) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
@@ -550,7 +550,7 @@ pub fn spawn_notification_delivery(state: AppState) -> tokio::task::JoinHandle<(
 }
 
 async fn delivery_tick(state: &AppState, http: &reqwest::Client) -> Result<(), String> {
-    // Claim pending notifications (per-env scan — RLS is enforced per
+    // Claim pending notifications (per-env scan - RLS is enforced per
     // connection; use the service connection with explicit env filter).
     let rows: Vec<(Uuid, Uuid, String, String, JsonValue, i32)> = sqlx::query_as(
         r#"SELECT n.id, s.id AS subscription_id, s.callback_url, s.event_type, n.payload, n.delivery_attempts
@@ -577,7 +577,7 @@ async fn delivery_tick(state: &AppState, http: &reqwest::Client) -> Result<(), S
             chrono::Utc::now(),
         );
         // Resolve the per-subscription secret by reference (never plaintext
-        // in DB — AGENTS.md secret-references rule).
+        // in DB - AGENTS.md secret-references rule).
         let secret_ref: Option<String> =
             sqlx::query_scalar("SELECT secret_ref FROM notification_subscriptions WHERE id = $1")
                 .bind(_sub_id)
@@ -598,7 +598,7 @@ async fn delivery_tick(state: &AppState, http: &reqwest::Client) -> Result<(), S
             .header("x-sentin8-signature", signature)
             .body(body);
         // FAPI transport security: Sentin8:TLS root CA is in the OS trust
-        // store (architecture-principles §4.16) — reqwest uses rustls with
+        // store (architecture-principles §4.16) - reqwest uses rustls with
         // native roots, no insecure override.
         let _ = &mut req;
         let res = req.send().await;
@@ -706,7 +706,7 @@ mod tests {
         assert_ne!(sig, sign_delivery("other-secret", body));
         // Body-sensitive (tamper evidence).
         assert_ne!(sig, sign_delivery(secret, b"hello worLd"));
-        // Long keys (> block size) hash down — RFC 2104 §2: keys longer than
+        // Long keys (> block size) hash down - RFC 2104 §2: keys longer than
         // the block size are first hashed.
         let long_secret = "x".repeat(200);
         let s1 = sign_delivery(&long_secret, body);

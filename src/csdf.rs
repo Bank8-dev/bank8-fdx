@@ -3,17 +3,17 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Bank8:FDX
 // SPDX-License-Identifier: Apache-2.0
 
-//! Story — CSDF minimization engine.
-//! Story — OAuth scope to data cluster mapping.
+//! Story - CSDF minimization engine.
+//! Story - OAuth scope to data cluster mapping.
 //! CSDF (Consensus Standard Data Format) filters JSON responses based on
 //! consent scopes, product rules, and requested fields, removing any data
 //! outside the authorised scope before serialisation.
 
 use serde::{Deserialize, Serialize};
 
-// ── Story — Data clusters ───────────────────────────────────────
+// ── Story - Data clusters ───────────────────────────────────────
 
-/// FDX data clusters — coarse-grained groupings of financial data.
+/// FDX data clusters - coarse-grained groupings of financial data.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DataCluster {
     Accounts,
@@ -61,14 +61,14 @@ pub fn scope_to_clusters(scope: &str) -> Vec<DataCluster> {
     }
 }
 
-// ── Story — CSDF filter ──────────────────────────────────────────
+// ── Story - CSDF filter ──────────────────────────────────────────
 
 /// Filter parameters driving CSDF minimisation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CsdfFilter {
     /// Consent scopes granted to the recipient (OAuth scopes).
     pub consent_scopes: Vec<String>,
-    /// Product category — restricts fields valid for the product type.
+    /// Product category - restricts fields valid for the product type.
     pub product_id: Option<String>,
     /// Explicitly requested fields (whitelist). When set, only these fields
     /// are returned.

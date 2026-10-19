@@ -3,7 +3,7 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Bank8:FDX
 // SPDX-License-Identifier: Apache-2.0
 
-//! FDX v6.5 completion — payment-initiation parties (PIP family, design §5.1).
+//! FDX v6.5 completion - payment-initiation parties (PIP family, design §5.1).
 
 use axum::{
     extract::{Path, State},
@@ -50,7 +50,7 @@ pub struct PipPartyResponse {
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
-/// `POST /fdx/v6/payment-initiation-parties` — register a payment
+/// `POST /fdx/v6/payment-initiation-parties` - register a payment
 /// initiation party.
 #[utoipa::path(
     post,
@@ -69,7 +69,7 @@ pub async fn create_pip_party(
     Json(req): Json<CreatePipPartyRequest>,
 ) -> Result<Json<PipPartyResponse>, Response> {
     let a = middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
-    // Same-transaction discipline (fdx DESIGN.md §5) — see start_consent.
+    // Same-transaction discipline (fdx DESIGN.md §5) - see start_consent.
     let mut conn = state.pool.begin().await.map_err(db_err)?;
     set_tenant_context(&mut conn, a.env_id()).await;
     let row = sqlx::query(
@@ -124,7 +124,7 @@ pub async fn get_pip_party(
 ) -> Result<Json<JsonValue>, Response> {
     let _a =
         middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
-    // Same-transaction discipline (fdx DESIGN.md §5) — see start_consent.
+    // Same-transaction discipline (fdx DESIGN.md §5) - see start_consent.
     let mut conn = state.pool.begin().await.map_err(db_err)?;
     set_tenant_context(&mut conn, _a.env_id()).await;
     let row = sqlx::query(
@@ -177,7 +177,7 @@ pub async fn create_pip_payment_method(
     Json(req): Json<CreatePipPaymentMethodRequest>,
 ) -> Result<Json<JsonValue>, Response> {
     let a = middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
-    // Same-transaction discipline (fdx DESIGN.md §5) — see start_consent.
+    // Same-transaction discipline (fdx DESIGN.md §5) - see start_consent.
     let mut conn = state.pool.begin().await.map_err(db_err)?;
     set_tenant_context(&mut conn, a.env_id()).await;
     let row = sqlx::query(
@@ -201,7 +201,7 @@ pub async fn create_pip_payment_method(
 }
 
 /// `DELETE /fdx/v6/payment-initiation-parties/{partyId}/payment-methods/{regId}`
-/// — revoke a party payment method.
+/// - revoke a party payment method.
 #[utoipa::path(
     delete,
     path = "/fdx/v6/payment-initiation-parties/{partyId}/payment-methods/{regId}",
@@ -219,7 +219,7 @@ pub async fn revoke_pip_payment_method(
     Path((party_id, reg_id)): Path<(Uuid, Uuid)>,
 ) -> Result<Json<JsonValue>, Response> {
     let a = middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
-    // Same-transaction discipline (fdx DESIGN.md §5) — see start_consent.
+    // Same-transaction discipline (fdx DESIGN.md §5) - see start_consent.
     let mut conn = state.pool.begin().await.map_err(db_err)?;
     set_tenant_context(&mut conn, a.env_id()).await;
     let updated = sqlx::query(

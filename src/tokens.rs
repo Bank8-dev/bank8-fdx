@@ -6,12 +6,12 @@
 //! Delegated provider-token storage via secret references (fdx DESIGN.md §1,
 //! two-ledger model). The recipient-side consent callback exchanges the
 //! authorization code at the provider's AS and stores the resulting access
-//! and refresh tokens on its OWN registry row (`fdx.recipient_consents`) —
+//! and refresh tokens on its OWN registry row (`fdx.recipient_consents`) -
 //! token custody follows the PKCE verifier, and the recipient is the OAuth
 //! client. Tokens are never stored as plaintext columns: each is written to
 //! the local secrets directory under `SENTIN8_SECRETS_DIR` (dev default
 //! `/etc/sentin8/secrets`) and only the `sentin8-secrets://` URI is stored
-//! on the registry row — the platform vault backend swaps in via the same
+//! on the registry row - the platform vault backend swaps in via the same
 //! `SecretResolver` trait.
 
 use sentin8_secrets_sdk::secrets::{SecretError, SecretRef, SecretResolver, SecretValue};
@@ -92,7 +92,7 @@ pub fn refresh_token_path(consent_id: Uuid) -> String {
 }
 
 /// Path for one recipient client row's DPoP signing key
-/// (one per `fdx.recipients` row — the recipient's per-provider client).
+/// (one per `fdx.recipients` row - the recipient's per-provider client).
 pub fn dpop_key_path(recipient_row_id: Uuid) -> String {
     format!("fdx/recipients/{recipient_row_id}/dpop-key")
 }
@@ -193,7 +193,7 @@ pub async fn load_provider_refresh_token(
 }
 
 /// Store the recipient client's DPoP signing key sealed behind a secret
-/// reference and return the reference URI (fdx DESIGN.md §1 — key material
+/// reference and return the reference URI (fdx DESIGN.md §1 - key material
 /// is never a plaintext column). One key per `fdx.recipients` row (the
 /// recipient's per-provider client). Overwrites in place (key rotation).
 pub fn store_dpop_key(recipient_row_id: Uuid, pem: &str) -> Result<String, String> {

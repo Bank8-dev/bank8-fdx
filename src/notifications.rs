@@ -3,7 +3,7 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Bank8:FDX
 // SPDX-License-Identifier: Apache-2.0
 
-//! Story — Notification service (subscriptions, publish, retry, DLQ).
+//! Story - Notification service (subscriptions, publish, retry, DLQ).
 //! All operations are stubs. In production these will be backed by a
 //! notification store and delivery worker.
 
@@ -30,7 +30,7 @@ pub struct Notification {
     pub created_at: DateTime<Utc>,
 }
 
-/// Create a notification subscription (stub — returns a new UUID).
+/// Create a notification subscription (stub - returns a new UUID).
 pub async fn create_subscription(
     customer_id: Uuid,
     event_types: Vec<String>,
@@ -57,7 +57,7 @@ pub async fn publish_notification(
     Ok(())
 }
 
-/// Retry failed notifications (stub — returns the IDs that would be retried).
+/// Retry failed notifications (stub - returns the IDs that would be retried).
 pub async fn retry_failed_notifications() -> Result<Vec<Uuid>, String> {
     Ok(vec![])
 }

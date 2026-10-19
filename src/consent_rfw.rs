@@ -3,7 +3,7 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Bank8:FDX
 // SPDX-License-Identifier: Apache-2.0
 
-//! Consent RFW endpoints — Bank8:FDX serves the FDX consent screen as
+//! Consent RFW endpoints - Bank8:FDX serves the FDX consent screen as
 //! Remote Flutter Widget definitions to auth-ui's consent RFW host.
 //! These endpoints are proxied by Sentin8:Auth via `/v1/auth/consent/*`
 //! during the OAuth consent flow. See `sentin8-architecture-principles.md`
@@ -19,7 +19,7 @@ use serde::Deserialize;
 use crate::auth;
 use crate::handlers::AppState;
 
-/// Query params for `GET /v1/auth/consent/ui` — the RFW consent page request.
+/// Query params for `GET /v1/auth/consent/ui` - the RFW consent page request.
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
 pub struct ConsentUiQuery {
@@ -33,7 +33,7 @@ pub struct ConsentUiQuery {
     pub session_token: Option<String>,
 }
 
-/// `GET /v1/auth/consent/ui` — return RFW consent page definition.
+/// `GET /v1/auth/consent/ui` - return RFW consent page definition.
 /// Returns a JSON RFW definition that auth-ui renders. The definition
 /// includes:
 /// - Scope list with FDX-specific descriptions and Material Icons code points
@@ -78,7 +78,7 @@ pub async fn auth_consent_ui(
         })
         .collect();
 
-    // Build RFW definition — a simple JSON structure that auth-ui's
+    // Build RFW definition - a simple JSON structure that auth-ui's
     // RFW runtime can inflate into Flutter widgets.
     let rfw = serde_json::json!({
         "page": {
@@ -137,7 +137,7 @@ pub async fn auth_consent_ui(
     Ok(Json(rfw))
 }
 
-/// `GET /v1/auth/consent/accounts` — data endpoint for account selection.
+/// `GET /v1/auth/consent/accounts` - data endpoint for account selection.
 /// Returns the customer's accounts at this Data Provider. Called by the
 /// RFW page's data fetch (proxied by Sentin8:Auth with a short-lived JWT).
 /// Fetches accounts from Bank8:Ledger.
@@ -162,7 +162,7 @@ pub async fn auth_consent_accounts(
     let env_id = a.env_id();
 
     // Fetch accounts from Bank8:Ledger over the certificate-presenting
-    // proxy transport (CERTFREE-8V — the `bank8-fdx-ledger` workload
+    // proxy transport (CERTFREE-8V - the `bank8-fdx-ledger` workload
     // presents in the TLS handshake; no static token).
     let http = state.config.ledger_http().cloned().ok_or((
         StatusCode::BAD_GATEWAY,
@@ -243,7 +243,7 @@ pub async fn auth_consent_accounts(
     Ok(Json(serde_json::json!({ "accounts": normalized })))
 }
 
-/// `POST /v1/auth/consent/approve` — process consent approval.
+/// `POST /v1/auth/consent/approve` - process consent approval.
 /// Receives form data from the RFW page (selected account IDs, consent
 /// metadata). Persists consent resources and returns the redirect URL.
 #[derive(Debug, Deserialize)]
@@ -291,7 +291,7 @@ pub async fn auth_consent_approve(
     })))
 }
 
-/// `POST /v1/auth/consent/deny` — record consent denial.
+/// `POST /v1/auth/consent/deny` - record consent denial.
 #[derive(Debug, Deserialize)]
 pub struct ConsentDenyRequest {
     pub redirect_uri: Option<String>,
@@ -325,7 +325,7 @@ pub async fn auth_consent_deny(
 }
 
 /// Map an FDX scope to a human-readable description and Material Icons code point.
-/// These descriptions are owned by Bank8:FDX (not the platform) — see §4.16.7.
+/// These descriptions are owned by Bank8:FDX (not the platform) - see §4.16.7.
 fn fdx_scope_description(scope: &str) -> (String, &'static str) {
     if scope.contains(":fdx:recipient:read") {
         ("Read FDX recipient data".into(), "0xe615")

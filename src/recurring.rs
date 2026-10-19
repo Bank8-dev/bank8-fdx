@@ -3,7 +3,7 @@
 // SPDX-FileCopyrightText: Copyright Contributors to the Bank8:FDX
 // SPDX-License-Identifier: Apache-2.0
 
-//! FDX v6.5 completion — recurring payments (backed by Bank8:Payments
+//! FDX v6.5 completion - recurring payments (backed by Bank8:Payments
 //! `scheduled_payments`; Sentin8:Cron is the scheduler; design §5.1).
 
 use axum::{
@@ -24,7 +24,7 @@ use crate::middleware;
 use crate::money_movement::proxy_payments_get;
 
 /// The fdx→payments proxy transport (CERTFREE-8V): the boot-built
-/// `bank8-fdx-payments` certificate-presenting client, or a loud error —
+/// `bank8-fdx-payments` certificate-presenting client, or a loud error -
 /// the proxy NEVER degrades to an unauthenticated call.
 fn payments_http(state: &AppState) -> Result<reqwest::Client, axum::response::Response> {
     state
@@ -57,7 +57,7 @@ pub struct CreateRecurringPaymentRequest {
     pub due_date: Option<String>,
 }
 
-/// `POST /fdx/v6/recurring-payments` — create a recurring payment
+/// `POST /fdx/v6/recurring-payments` - create a recurring payment
 /// (; backed by Bank8:Payments `scheduled_payments`).
 #[utoipa::path(
     post,
@@ -134,7 +134,7 @@ pub fn frequency_to_rrule(frequency: &str) -> Option<String> {
     }
 }
 
-/// `GET /fdx/v6/recurring-payments` — search recurring payments (;
+/// `GET /fdx/v6/recurring-payments` - search recurring payments (;
 /// proxies the payments scheduled-payments list).
 #[utoipa::path(
     get,
@@ -156,7 +156,7 @@ pub async fn list_recurring_payments(
     proxy_payments_get(&state, "/v1beta/scheduled-payments").await
 }
 
-/// `GET /fdx/v6/recurring-payments/{recurringPaymentId}` — detail.
+/// `GET /fdx/v6/recurring-payments/{recurringPaymentId}` - detail.
 #[utoipa::path(
     get,
     path = "/fdx/v6/recurring-payments/{recurringPaymentId}",
@@ -178,7 +178,7 @@ pub async fn get_recurring_payment(
     proxy_payments_get(&state, &format!("/v1beta/scheduled-payments/{rp_id}")).await
 }
 
-/// `GET /fdx/v6/recurring-payments/{recurringPaymentId}/payments` — the
+/// `GET /fdx/v6/recurring-payments/{recurringPaymentId}/payments` - the
 /// executed occurrences (; proxies payments for the source schedule).
 #[utoipa::path(
     get,
