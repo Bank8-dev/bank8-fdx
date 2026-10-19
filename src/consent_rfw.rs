@@ -16,6 +16,8 @@ use axum::{
 };
 use serde::Deserialize;
 
+use utoipa::ToSchema;
+use crate::dtos::*;
 use crate::auth;
 use crate::handlers::AppState;
 
@@ -45,7 +47,7 @@ pub struct ConsentUiQuery {
     get,
     path = "/v1/auth/consent/ui",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = FdxAccountsPassthrough),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -145,7 +147,7 @@ pub async fn auth_consent_ui(
     get,
     path = "/v1/auth/consent/accounts",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = FdxAccountsPassthrough),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -155,7 +157,7 @@ pub async fn auth_consent_ui(
 pub async fn auth_consent_accounts(
     State(state): State<AppState>,
     headers: HeaderMap,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> Result<Json<FdxAccountsPassthrough>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
 
     // env_id is the sole tenant key.
@@ -240,13 +242,13 @@ pub async fn auth_consent_accounts(
         })
         .collect();
 
-    Ok(Json(serde_json::json!({ "accounts": normalized })))
+    Ok(Json(FdxAccountsPassthrough(serde_json::json!({ "accounts": normalized }))))
 }
 
 /// `POST /v1/auth/consent/approve` - process consent approval.
 /// Receives form data from the RFW page (selected account IDs, consent
 /// metadata). Persists consent resources and returns the redirect URL.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 #[allow(dead_code)]
 pub struct ConsentApproveRequest {
     pub scopes: Option<String>,
@@ -260,19 +262,19 @@ pub struct ConsentApproveRequest {
 #[utoipa::path(
     post,
     path = "/v1/auth/consent/approve",
+    request_body = ConsentApproveRequest,
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = ConsentRedirectResponse),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
     security(),
-    tag = "consent",
-)]
+    tag = "consent",)]
 pub async fn auth_consent_approve(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(req): Json<ConsentApproveRequest>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> Result<Json<ConsentRedirectResponse>, (StatusCode, String)> {
     let _a = auth::verify_token(&state.config, &headers).await?;
 
     // Build the redirect URL with selected_account_ids appended.
@@ -286,13 +288,13 @@ pub async fn auth_consent_approve(
         url.push_str(&format!("&selected_account_ids={}", account_ids.join(",")));
     }
 
-    Ok(Json(serde_json::json!({
-        "redirect_url": url,
-    })))
+    Ok(Json(ConsentRedirectResponse {
+        redirect_url: url,
+    }))
 }
 
 /// `POST /v1/auth/consent/deny` - record consent denial.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct ConsentDenyRequest {
     pub redirect_uri: Option<String>,
     pub state: Option<String>,
@@ -301,27 +303,27 @@ pub struct ConsentDenyRequest {
 #[utoipa::path(
     post,
     path = "/v1/auth/consent/deny",
+    request_body = ConsentDenyRequest,
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = ConsentRedirectResponse),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
     security(),
-    tag = "consent",
-)]
+    tag = "consent",)]
 pub async fn auth_consent_deny(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(req): Json<ConsentDenyRequest>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> Result<Json<ConsentRedirectResponse>, (StatusCode, String)> {
     let _a = auth::verify_token(&state.config, &headers).await?;
 
     let redirect_uri = req.redirect_uri.unwrap_or_default();
     let state_param = req.state.unwrap_or_default();
 
-    Ok(Json(serde_json::json!({
-        "redirect_url": format!("{}?error=access_denied&state={}", redirect_uri, state_param),
-    })))
+    Ok(Json(ConsentRedirectResponse {
+        redirect_url: format!("{}?error=access_denied&state={}", redirect_uri, state_param),
+    }))
 }
 
 /// Map an FDX scope to a human-readable description and Material Icons code point.

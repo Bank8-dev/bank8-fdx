@@ -44,7 +44,7 @@ use crate::middleware;
     get,
     path = "/fdx/v6/accounts/{id}/statements/{statementId}",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 302, description = "Redirect to the signed statement URL (Storage link API)"),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),

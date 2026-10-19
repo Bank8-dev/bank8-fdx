@@ -17,6 +17,7 @@ use sqlx::Row;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use crate::dtos::*;
 use crate::common::{db_err, set_tenant_context};
 use crate::csdf;
 use crate::errors::FdxErrorResponse;
@@ -46,7 +47,7 @@ use crate::middleware;
     get,
     path = "/fdx/v6/accounts/{id}/payment-networks/{paymentNetworkId}",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = FdxAccountsPassthrough),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -57,7 +58,7 @@ pub async fn get_payment_network(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path((account_id, network_id)): Path<(Uuid, String)>,
-) -> Result<Json<JsonValue>, Response> {
+) -> Result<Json<FdxAccountsPassthrough>, Response> {
     let _a =
         middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
     let http = ledger_http(&state)?;
@@ -90,7 +91,7 @@ pub async fn get_payment_network(
                 .into_response(),
         );
     }
-    Ok(Json(serde_json::json!({ "paymentNetworks": matched })))
+    Ok(Json(FdxAccountsPassthrough(serde_json::json!({ "paymentNetworks": matched }))))
 }
 
 /// The FDX RevocationRequest (reason/initiator/otherReason) - shared by the
@@ -138,14 +139,14 @@ pub fn validate_revocation(req: &RevocationRequest) -> Result<(), Response> {
 #[utoipa::path(
     put,
     path = "/fdx/v6/accounts/{id}/payment-networks/{paymentNetworkId}/revocation",
+    request_body = RevocationRequest,
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 204, description = "Payment-network access revoked (no content)"),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
     security(),
-    tag = "fdx",
-)]
+    tag = "fdx",)]
 pub async fn revoke_payment_network(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -187,7 +188,7 @@ pub async fn revoke_payment_network(
     get,
     path = "/fdx/v6/accounts/{id}/payment-networks/{paymentNetworkId}/revocation",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "Revocation events", body = PaymentNetworkRevocationListResponse),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),

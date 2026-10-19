@@ -13,11 +13,11 @@ use axum::{
     Json,
 };
 use serde::Deserialize;
-use serde_json::Value as JsonValue;
 use sqlx::Row;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use crate::dtos::*;
 use crate::common::{db_err, set_tenant_context};
 use crate::errors::FdxErrorResponse;
 use crate::event_notifications::queue_consent_revoked_notification;
@@ -33,7 +33,7 @@ use crate::payment_networks::{validate_revocation, RevocationRequest};
     get,
     path = "/fdx/v6/consents/{id}/revocation",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "Revocation record", body = ConsentRevocationRecord),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -44,7 +44,7 @@ pub async fn get_consent_revocation(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(consent_id): Path<Uuid>,
-) -> Result<Json<JsonValue>, Response> {
+) -> Result<Json<ConsentRevocationRecord>, Response> {
     let _a = middleware::provider_authz(&state, &headers, None).await?;
     // Same-transaction discipline (fdx DESIGN.md §5) - see start_consent.
     let mut conn = state.pool.begin().await.map_err(db_err)?;
@@ -59,13 +59,13 @@ pub async fn get_consent_revocation(
     .await
     .map_err(db_err)?
     .ok_or_else(|| FdxErrorResponse::new(404, "1107", "Data not found for request parameters"))?;
-    Ok(Json(serde_json::json!({
-        "consentId": consent_id,
-        "reason": row.get::<String, _>("reason"),
-        "otherReason": row.get::<Option<String>, _>("other_reason"),
-        "initiator": row.get::<String, _>("initiator"),
-        "revokedAt": row.get::<chrono::DateTime<chrono::Utc>, _>("revoked_at"),
-    })))
+    Ok(Json(ConsentRevocationRecord {
+        consent_id,
+        reason: row.get::<String, _>("reason"),
+        other_reason: row.get::<Option<String>, _>("other_reason"),
+        initiator: row.get::<String, _>("initiator"),
+        revoked_at: row.get::<chrono::DateTime<chrono::Utc>, _>("revoked_at"),
+    }))
 }
 
 /// `PUT /fdx/v6/consents/{consentId}/revocation` - the FDX
@@ -75,14 +75,14 @@ pub async fn get_consent_revocation(
 #[utoipa::path(
     put,
     path = "/fdx/v6/consents/{id}/revocation",
+    request_body = RevocationRequest,
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 204, description = "Consent revoked (no content)"),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
     security(),
-    tag = "consent",
-)]
+    tag = "consent",)]
 pub async fn revoke_consent_with_record(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -208,20 +208,20 @@ pub fn validate_duration_model(
 #[utoipa::path(
     put,
     path = "/fdx/v6/consents/{id}/lifecycle",
+    request_body = UpdateConsentLifecycleRequest,
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = ConsentLifecycleResponse),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
     security(),
-    tag = "consent",
-)]
+    tag = "consent",)]
 pub async fn update_consent_lifecycle(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(consent_id): Path<Uuid>,
     Json(req): Json<UpdateConsentLifecycleRequest>,
-) -> Result<Json<JsonValue>, Response> {
+) -> Result<Json<ConsentLifecycleResponse>, Response> {
     let a = middleware::provider_authz(&state, &headers, None).await?;
     validate_duration_model(
         &req.duration_type,
@@ -262,12 +262,12 @@ pub async fn update_consent_lifecycle(
         serde_json::json!({ "consent_id": consent_id, "duration_type": req.duration_type }),
     )
     .await;
-    Ok(Json(serde_json::json!({
-        "consentId": consent_id,
-        "durationType": req.duration_type,
-        "durationPeriod": req.duration_period_days,
-        "lookbackPeriod": req.lookback_period_days,
-    })))
+    Ok(Json(ConsentLifecycleResponse {
+        consent_id,
+        duration_type: req.duration_type,
+        duration_period: req.duration_period_days,
+        lookback_period: req.lookback_period_days,
+    }))
 }
 
 /// Lookback filter: the earliest transaction date a consent permits

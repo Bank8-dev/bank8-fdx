@@ -12,8 +12,8 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use serde_json::Value as JsonValue;
 
+use crate::dtos::*;
 use crate::errors::FdxErrorResponse;
 use crate::handlers::AppState;
 use crate::middleware;
@@ -67,7 +67,7 @@ pub fn unsupported_operation_response(path: &str) -> Response {
     get,
     path = "/fdx/v6/operation-support",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = OperationSupport),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -77,24 +77,13 @@ pub fn unsupported_operation_response(path: &str) -> Response {
 pub async fn get_operation_support(
     State(state): State<AppState>,
     headers: HeaderMap,
-) -> Result<Json<JsonValue>, Response> {
+) -> Result<Json<OperationSupport>, Response> {
     let _a = middleware::provider_authz(&state, &headers, None).await?;
     let _ = state;
-    Ok(Json(serde_json::json!({
-        "implemented": [
-            "accounts", "transactions", "statements", "customers", "consents",
-            "transfers", "payments", "payees", "payment-initiation-parties",
-            "recurring-payments", "payment-networks", "notification-subscriptions",
-            "notifications", "register", "capability", "availability",
-            "certification-metrics",
-        ],
-        "outOfScope": [
-            "reward-programs", "transaction-images", "tax-forms", "payroll",
-            "fraud", "data-providers", "recipients-registry",
-            "terms-and-conditions", "contacts", "bills", "investments",
-            "social-security", "digital-wallet",
-        ],
-    })))
+    Ok(Json(OperationSupport {
+        implemented: vec!["accounts".into(), "transactions".into(), "statements".into(), "customers".into(), "consents".into(), "transfers".into(), "payments".into(), "payees".into(), "payment-initiation-parties".into(), "recurring-payments".into(), "payment-networks".into(), "notification-subscriptions".into(), "notifications".into(), "register".into(), "capability".into(), "availability".into(), "certification-metrics".into()],
+        out_of_scope: vec!["reward-programs".into(), "transaction-images".into(), "tax-forms".into(), "payroll".into(), "fraud".into(), "data-providers".into(), "recipients-registry".into(), "terms-and-conditions".into(), "contacts".into(), "bills".into(), "investments".into(), "social-security".into(), "digital-wallet".into()],
+    }))
 }
 
 #[cfg(test)]

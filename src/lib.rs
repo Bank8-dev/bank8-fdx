@@ -12,6 +12,7 @@ pub mod config;
 pub mod consent_records;
 pub mod consent_rfw;
 pub mod csdf;
+pub mod dtos;
 pub mod errors;
 pub mod event_consumer;
 pub mod event_notifications;

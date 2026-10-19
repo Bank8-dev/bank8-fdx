@@ -18,6 +18,8 @@ use sqlx::Row;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use crate::dtos::*;
+use crate::flow::ProxyBackResponse;
 use crate::auth;
 use crate::config::Fdx8Config;
 use crate::csdf;
@@ -74,7 +76,9 @@ pub struct AppState {
 #[derive(Default)]
 pub struct CertMetricsCache {
     entries:
-        std::sync::Mutex<std::collections::HashMap<Uuid, (serde_json::Value, std::time::Instant)>>,
+        std::sync::Mutex<
+            std::collections::HashMap<Uuid, (crate::dtos::CertificationMetrics, std::time::Instant)>,
+        >,
 }
 
 impl Clone for CertMetricsCache {
@@ -91,7 +95,7 @@ impl CertMetricsCache {
     const TTL: std::time::Duration = std::time::Duration::from_secs(30);
     const MAX_ENTRIES: usize = 1024;
 
-    pub fn get(&self, env_id: &Uuid) -> Option<serde_json::Value> {
+    pub fn get(&self, env_id: &Uuid) -> Option<crate::dtos::CertificationMetrics> {
         let mut entries = self.entries.lock().ok()?;
         let (value, fetched_at) = entries.get(env_id)?;
         if fetched_at.elapsed() > Self::TTL {
@@ -101,7 +105,7 @@ impl CertMetricsCache {
         Some(value.clone())
     }
 
-    pub fn insert(&self, env_id: Uuid, value: serde_json::Value) {
+    pub fn insert(&self, env_id: Uuid, value: crate::dtos::CertificationMetrics) {
         let Ok(mut entries) = self.entries.lock() else {
             return;
         };
@@ -159,7 +163,7 @@ pub struct ConsentResponse {
     post,
     path = "/v1/consents",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "Created consent", body = ConsentResponse),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -210,7 +214,7 @@ pub async fn create_consent(
     get,
     path = "/v1/consents",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "Consent list", body = ConsentResponse),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -262,7 +266,7 @@ pub struct ListConsentsQuery {
     get,
     path = "/v1/consents/{id}",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "Consent detail", body = ConsentResponse),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -297,7 +301,7 @@ pub async fn get_consent(
     post,
     path = "/v1/consents/{id}/revoke",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = ConsentResponse),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -348,7 +352,7 @@ pub async fn revoke_consent(
     get,
     path = "/fdx/v6/accounts",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = FdxAccountsPassthrough),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -358,7 +362,7 @@ pub async fn revoke_consent(
 pub async fn get_accounts(
     State(state): State<AppState>,
     headers: HeaderMap,
-) -> Result<Json<serde_json::Value>, Response> {
+) -> Result<Json<FdxAccountsPassthrough>, Response> {
     let _a =
         middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Accounts)).await?;
     let http = ledger_http(&state)?;
@@ -380,7 +384,7 @@ pub async fn get_accounts(
     let filter = consent_filter_from_headers(&state, &headers).await;
     // Wrap in FDX response format, then apply CSDF minimization (§7).
     let wrapped = serde_json::json!({ "accounts": body });
-    Ok(Json(minimize_response(&wrapped, &filter)))
+    Ok(Json(FdxAccountsPassthrough(minimize_response(&wrapped, &filter))))
 }
 
 /// `GET /fdx/v6/accounts/{accountId}` - account detail (proxies to Ledger).
@@ -388,7 +392,7 @@ pub async fn get_accounts(
     get,
     path = "/fdx/v6/accounts/{id}",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = FdxAccountsPassthrough),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -399,7 +403,7 @@ pub async fn get_account_detail(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(account_id): Path<Uuid>,
-) -> Result<Json<serde_json::Value>, Response> {
+) -> Result<Json<FdxAccountsPassthrough>, Response> {
     let _a =
         middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Accounts)).await?;
     let http = ledger_http(&state)?;
@@ -416,7 +420,7 @@ pub async fn get_account_detail(
         .await
         .map_err(|e| FdxErrorResponse::internal(format!("ledger decode: {e}")))?;
     let filter = consent_filter_from_headers(&state, &headers).await;
-    Ok(Json(minimize_response(&body, &filter)))
+    Ok(Json(FdxAccountsPassthrough(minimize_response(&body, &filter))))
 }
 
 /// `GET /fdx/v6/accounts/{accountId}/transactions` - transactions (proxies
@@ -425,7 +429,7 @@ pub async fn get_account_detail(
     get,
     path = "/fdx/v6/accounts/{id}/transactions",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = FdxAccountsPassthrough),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -436,7 +440,7 @@ pub async fn get_account_transactions(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(account_id): Path<Uuid>,
-) -> Result<Json<serde_json::Value>, Response> {
+) -> Result<Json<FdxAccountsPassthrough>, Response> {
     let _a =
         middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Transactions)).await?;
     let http = ledger_http(&state)?;
@@ -453,7 +457,7 @@ pub async fn get_account_transactions(
         .await
         .map_err(|e| FdxErrorResponse::internal(format!("ledger decode: {e}")))?;
     let filter = consent_filter_from_headers(&state, &headers).await;
-    Ok(Json(minimize_response(&body, &filter)))
+    Ok(Json(FdxAccountsPassthrough(minimize_response(&body, &filter))))
 }
 
 // ── FDX consent introspection + revocation (design §5.1) ────────────────
@@ -463,7 +467,7 @@ pub async fn get_account_transactions(
     get,
     path = "/fdx/v6/consents/{id}",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = FdxConsentIntrospection),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -474,7 +478,7 @@ pub async fn get_fdx_consent(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(consent_id): Path<Uuid>,
-) -> Result<Json<serde_json::Value>, Response> {
+) -> Result<Json<FdxConsentIntrospection>, Response> {
     let _a = middleware::provider_authz(&state, &headers, None).await?;
     // Same-transaction discipline (fdx DESIGN.md §5) - see start_consent.
     let mut conn = state
@@ -501,26 +505,24 @@ pub async fn get_fdx_consent(
             .fetch_all(&mut *conn)
             .await
             .map_err(|e| FdxErrorResponse::internal(format!("db: {e}")))?;
-            let resource_list: Vec<serde_json::Value> = resources
+            let resource_list: Vec<FdxConsentResource> = resources
                 .iter()
-                .map(|res| {
-                    serde_json::json!({
-                        "resource_type": res.get::<String, _>("resource_type"),
-                        "resource_id": res.get::<String, _>("resource_id"),
-                        "data_clusters": res.get::<Vec<String>, _>("data_clusters"),
-                    })
+                .map(|res| FdxConsentResource {
+                    resource_type: res.get::<String, _>("resource_type"),
+                    resource_id: res.get::<String, _>("resource_id"),
+                    data_clusters: res.get::<Vec<String>, _>("data_clusters"),
                 })
                 .collect();
-            Ok(Json(serde_json::json!({
-                "consentId": r.get::<Uuid, _>("id"),
-                "customerId": r.get::<Uuid, _>("customer_id"),
-                "status": r.get::<String, _>("status"),
-                "scopes": r.get::<Vec<String>, _>("scopes"),
-                "dataClusters": r.get::<Vec<String>, _>("data_clusters"),
-                "expiresAt": r.get::<Option<chrono::DateTime<chrono::Utc>>, _>("expires_at"),
-                "createdAt": r.get::<chrono::DateTime<chrono::Utc>, _>("created_at"),
-                "resources": resource_list,
-            })))
+            Ok(Json(FdxConsentIntrospection {
+                consent_id: r.get::<Uuid, _>("id"),
+                customer_id: r.get::<Uuid, _>("customer_id"),
+                status: r.get::<String, _>("status"),
+                scopes: r.get::<Vec<String>, _>("scopes"),
+                data_clusters: r.get::<Vec<String>, _>("data_clusters"),
+                expires_at: r.get::<Option<chrono::DateTime<chrono::Utc>>, _>("expires_at"),
+                created_at: r.get::<chrono::DateTime<chrono::Utc>, _>("created_at"),
+                resources: resource_list,
+            }))
         }
         None => Err(FdxErrorResponse::not_found("consent not found").into_response()),
     }
@@ -583,7 +585,7 @@ pub async fn revoke_fdx_consent(
     get,
     path = "/v1/recipient/providers",
     responses(
-        (status = 200, description = "List of FDX data providers", body = serde_json::Value),
+        (status = 200, description = "OK", body = ProviderCatalogResponse),
         (status = 403, description = "Missing fdx:read scope"),
     ),
     security(("fdx:read" = [])),
@@ -592,7 +594,7 @@ pub async fn revoke_fdx_consent(
 pub async fn list_recipient_providers(
     State(state): State<AppState>,
     headers: HeaderMap,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> Result<Json<ProviderCatalogResponse>, (StatusCode, String)> {
     let _a = auth::verify_token(&state.config, &headers).await?;
     crate::policy::require(
         &state.policy,
@@ -613,7 +615,7 @@ pub async fn list_recipient_providers(
     .await
     .map_err(err_db)?;
 
-    let providers: Vec<serde_json::Value> = rows
+    let providers: Vec<ProviderCard> = rows
         .iter()
         .map(|r| {
             let caps: serde_json::Value =
@@ -626,18 +628,18 @@ pub async fn list_recipient_providers(
                         .collect()
                 })
                 .unwrap_or_default();
-            serde_json::json!({
-                "id": r.get::<Uuid, _>("id"),
-                "name": r.get::<String, _>("provider_name"),
-                "issuer_url": r.get::<String, _>("issuer_url"),
-                "fdx_version": r.get::<String, _>("fdx_version"),
-                "supportedDataClusters": clusters,
-                "status": r.get::<String, _>("status"),
-            })
+            ProviderCard {
+                id: r.get::<Uuid, _>("id"),
+                name: r.get::<String, _>("provider_name"),
+                issuer_url: r.get::<String, _>("issuer_url"),
+                fdx_version: r.get::<String, _>("fdx_version"),
+                supported_data_clusters: clusters,
+                status: r.get::<String, _>("status"),
+            }
         })
         .collect();
 
-    Ok(Json(serde_json::json!({ "providers": providers })))
+    Ok(Json(ProviderCatalogResponse { providers }))
 }
 
 // ── Provider API  ────────────────────────────────────
@@ -647,7 +649,7 @@ pub async fn list_recipient_providers(
     get,
     path = "/fdx/v6/accounts/{id}/statements",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = FdxAccountsPassthrough),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -658,7 +660,7 @@ pub async fn list_account_statements(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(account_id): Path<Uuid>,
-) -> Result<Json<serde_json::Value>, Response> {
+) -> Result<Json<FdxAccountsPassthrough>, Response> {
     let _a =
         middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Statements)).await?;
     let http = ledger_http(&state)?;
@@ -676,7 +678,7 @@ pub async fn list_account_statements(
         .map_err(|e| FdxErrorResponse::internal(format!("ledger decode: {e}")))?;
     let filter = consent_filter_from_headers(&state, &headers).await;
     let wrapped = serde_json::json!({ "statements": body });
-    Ok(Json(minimize_response(&wrapped, &filter)))
+    Ok(Json(FdxAccountsPassthrough(minimize_response(&wrapped, &filter))))
 }
 
 /// `GET /fdx/v6/accounts/{accountId}/payment-networks` - payment network info.
@@ -684,7 +686,7 @@ pub async fn list_account_statements(
     get,
     path = "/fdx/v6/accounts/{id}/payment-networks",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = FdxAccountsPassthrough),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -695,7 +697,7 @@ pub async fn get_payment_networks(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(account_id): Path<Uuid>,
-) -> Result<Json<serde_json::Value>, Response> {
+) -> Result<Json<FdxAccountsPassthrough>, Response> {
     let _a =
         middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Accounts)).await?;
     let http = ledger_http(&state)?;
@@ -713,7 +715,7 @@ pub async fn get_payment_networks(
         .map_err(|e| FdxErrorResponse::internal(format!("ledger decode: {e}")))?;
     let filter = consent_filter_from_headers(&state, &headers).await;
     let wrapped = serde_json::json!({ "payment_networks": body });
-    Ok(Json(minimize_response(&wrapped, &filter)))
+    Ok(Json(FdxAccountsPassthrough(minimize_response(&wrapped, &filter))))
 }
 
 /// `GET /fdx/v6/customers` - list customers (proxy to Ledger).
@@ -721,7 +723,7 @@ pub async fn get_payment_networks(
     get,
     path = "/fdx/v6/customers",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = FdxAccountsPassthrough),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -731,7 +733,7 @@ pub async fn get_payment_networks(
 pub async fn list_customers(
     State(state): State<AppState>,
     headers: HeaderMap,
-) -> Result<Json<serde_json::Value>, Response> {
+) -> Result<Json<FdxAccountsPassthrough>, Response> {
     let _a =
         middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Customers)).await?;
     let http = ledger_http(&state)?;
@@ -746,7 +748,7 @@ pub async fn list_customers(
         .map_err(|e| FdxErrorResponse::internal(format!("ledger decode: {e}")))?;
     let filter = consent_filter_from_headers(&state, &headers).await;
     let wrapped = serde_json::json!({ "customers": body });
-    Ok(Json(minimize_response(&wrapped, &filter)))
+    Ok(Json(FdxAccountsPassthrough(minimize_response(&wrapped, &filter))))
 }
 
 /// `GET /fdx/v6/customers/current` - current customer (proxy to Ledger).
@@ -754,7 +756,7 @@ pub async fn list_customers(
     get,
     path = "/fdx/v6/customers/current",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = FdxAccountsPassthrough),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -764,7 +766,7 @@ pub async fn list_customers(
 pub async fn get_current_customer(
     State(state): State<AppState>,
     headers: HeaderMap,
-) -> Result<Json<serde_json::Value>, Response> {
+) -> Result<Json<FdxAccountsPassthrough>, Response> {
     let a =
         middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Customers)).await?;
     let http = ledger_http(&state)?;
@@ -783,7 +785,7 @@ pub async fn get_current_customer(
         .await
         .map_err(|e| FdxErrorResponse::internal(format!("ledger decode: {e}")))?;
     let filter = consent_filter_from_headers(&state, &headers).await;
-    Ok(Json(minimize_response(&body, &filter)))
+    Ok(Json(FdxAccountsPassthrough(minimize_response(&body, &filter))))
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -800,7 +802,7 @@ pub struct CreateTransferRequest {
     post,
     path = "/fdx/v6/transfers",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = FdxAccountsPassthrough),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -811,7 +813,7 @@ pub async fn create_transfer(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(req): Json<CreateTransferRequest>,
-) -> Result<Json<serde_json::Value>, Response> {
+) -> Result<Json<FdxAccountsPassthrough>, Response> {
     let a =
         middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Transfers)).await?;
     let http = payments_http(&state)?;
@@ -838,7 +840,7 @@ pub async fn create_transfer(
         body.clone(),
     )
     .await;
-    Ok(Json(body))
+    Ok(Json(FdxAccountsPassthrough(body)))
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -854,7 +856,7 @@ pub struct CreatePaymentRequest {
     post,
     path = "/fdx/v6/payments",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = FdxAccountsPassthrough),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -865,7 +867,7 @@ pub async fn create_payment(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(req): Json<CreatePaymentRequest>,
-) -> Result<Json<serde_json::Value>, Response> {
+) -> Result<Json<FdxAccountsPassthrough>, Response> {
     let a = middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
     let http = payments_http(&state)?;
     let payload = serde_json::json!({
@@ -890,7 +892,7 @@ pub async fn create_payment(
         body.clone(),
     )
     .await;
-    Ok(Json(body))
+    Ok(Json(FdxAccountsPassthrough(body)))
 }
 
 /// `GET /fdx/v6/capability` - provider capability metadata.
@@ -898,25 +900,31 @@ pub async fn create_payment(
     get,
     path = "/fdx/v6/capability",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = FdxCapability),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
     security(),
     tag = "fdx",
 )]
-pub async fn get_capability() -> Json<serde_json::Value> {
-    Json(serde_json::json!({
-        "fdx_version" : "6.5",
-        "capabilities": [
-            "ACCOUNTS", "TRANSACTIONS", "STATEMENTS", "PAYMENTS",
-            "TRANSFERS", "CUSTOMERS", "TAX", "NOTIFICATIONS",
-        ],
-        "data_clusters" : [
-            "ACCOUNTS", "PAYMENTS", "STATEMENTS", "CUSTOMERS",
-            "TRANSACTIONS", "TRANSFERS", "TAX",
-        ],
-    }))
+pub async fn get_capability() -> Json<FdxCapability> {
+    Json(FdxCapability {
+        fdx_version: "6.5".into(),
+        capabilities: vec![
+            "ACCOUNTS", "TRANSACTIONS", "STATEMENTS", "PAYMENTS", "TRANSFERS",
+            "CUSTOMERS", "TAX", "NOTIFICATIONS",
+        ]
+        .into_iter()
+        .map(String::from)
+        .collect(),
+        data_clusters: vec![
+            "ACCOUNTS", "PAYMENTS", "STATEMENTS", "CUSTOMERS", "TRANSACTIONS",
+            "TRANSFERS", "TAX",
+        ]
+        .into_iter()
+        .map(String::from)
+        .collect(),
+    })
 }
 
 /// `GET /fdx/v6/availability` - provider availability status.
@@ -924,18 +932,18 @@ pub async fn get_capability() -> Json<serde_json::Value> {
     get,
     path = "/fdx/v6/availability",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = FdxAvailability),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
     security(),
     tag = "fdx",
 )]
-pub async fn get_availability() -> Json<serde_json::Value> {
-    Json(serde_json::json!({
-        "status": "available",
-        "description": "FDX provider is operational",
-    }))
+pub async fn get_availability() -> Json<FdxAvailability> {
+    Json(FdxAvailability {
+        status: "available".into(),
+        description: "FDX provider is operational".into(),
+    })
 }
 
 /// `GET /fdx/v6/certification-metrics` - certification metrics (design
@@ -948,7 +956,7 @@ pub async fn get_availability() -> Json<serde_json::Value> {
     get,
     path = "/fdx/v6/certification-metrics",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = CertificationMetrics),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -958,7 +966,7 @@ pub async fn get_availability() -> Json<serde_json::Value> {
 pub async fn get_certification_metrics(
     State(state): State<AppState>,
     headers: HeaderMap,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> Result<Json<crate::dtos::CertificationMetrics>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
     crate::policy::require(
         &state.policy,
@@ -987,15 +995,15 @@ pub async fn get_certification_metrics(
     .fetch_one(&mut *conn).await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("certification metrics: {e}")))?;
     use sqlx::Row;
-    let body = serde_json::json!({
-        "certified": true,
-        "fdx_version": "6.5",
-        "metrics": {
-            "consents_granted": row.try_get::<i64, _>(0).unwrap_or(0),
-            "consents_revoked": row.try_get::<i64, _>(1).unwrap_or(0),
-            "data_calls": row.try_get::<i64, _>(2).unwrap_or(0),
+    let body = crate::dtos::CertificationMetrics {
+        certified: true,
+        fdx_version: "6.5".into(),
+        metrics: crate::dtos::CertificationMetricCounters {
+            consents_granted: row.try_get::<i64, _>(0).unwrap_or(0),
+            consents_revoked: row.try_get::<i64, _>(1).unwrap_or(0),
+            data_calls: row.try_get::<i64, _>(2).unwrap_or(0),
         },
-    });
+    };
     state.cert_metrics_cache.insert(cache_key, body.clone());
     Ok(Json(body))
 }
@@ -1034,7 +1042,7 @@ pub struct StartConsentRequest {
     path = "/v1/recipient/consents/start",
     request_body = StartConsentRequest,
     responses(
-        (status = 200, description = "Consent started with authorization URL", body = serde_json::Value),
+        (status = 200, description = "OK", body = ConsentStartResponse),
         (status = 403, description = "Missing fdx:read scope"),
     ),
     security(("fdx:read" = [])),
@@ -1044,7 +1052,7 @@ pub async fn start_consent(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(req): Json<StartConsentRequest>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> Result<Json<ConsentStartResponse>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
     crate::policy::require(
         &state.policy,
@@ -1188,12 +1196,12 @@ pub async fn start_consent(
         urlencoding(request_uri),
     );
     emit_event(&state.pool, a.env_id(), "bank8:fdx:recipientconsent:started", serde_json::json!({ "consent_id": id, "provider_id": req.provider_id, "scopes": req.scopes })).await;
-    Ok(Json(serde_json::json!({
-        "consent_id" : id,
-        "authorization_url": auth_url,
-        "status": "pending",
-        "provider_name": provider_name,
-    })))
+    Ok(Json(ConsentStartResponse {
+        consent_id: id,
+        authorization_url: auth_url,
+        status: "pending".into(),
+        provider_name,
+    }))
 }
 
 /// Query params for `GET /fdx/consents/callback` - the OAuth callback after
@@ -1233,7 +1241,7 @@ pub struct ConsentCallbackQuery {
     get,
     path = "/fdx/consents/callback",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 302, description = "Redirect to the authorization URL"),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -1501,7 +1509,7 @@ pub async fn consent_callback(
     path = "/v1/recipient/consents",
     params(("customer_id" = Option<Uuid>, Query, description = "Filter by customer")),
     responses(
-        (status = 200, description = "List of recipient consents", body = serde_json::Value),
+        (status = 200, description = "OK", body = RecipientConsentListResponse),
         (status = 403, description = "Missing fdx:read scope"),
     ),
     security(("fdx:read" = [])),
@@ -1511,7 +1519,7 @@ pub async fn list_recipient_consents(
     State(state): State<AppState>,
     headers: HeaderMap,
     Query(q): Query<ListConsentsQuery>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> Result<Json<RecipientConsentListResponse>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
     crate::policy::require(
         &state.policy,
@@ -1537,24 +1545,22 @@ pub async fn list_recipient_consents(
     .await
     .map_err(err_db)?;
     let _ = conn.commit().await;
-    let consents: Vec<serde_json::Value> = rows
+        let consents: Vec<RecipientConsentRow> = rows
         .iter()
-        .map(|r| {
-            serde_json::json!({
-                "id": r.get::<Uuid, _>("id"),
-                "customer_id": r.get::<Uuid, _>("customer_id"),
-                "provider_id": r.get::<String, _>("provider_id"),
-                "provider_name": r.get::<Option<String>, _>("provider_name").unwrap_or_default(),
-                "status": r.get::<String, _>("status"),
-                "scopes": r.get::<Vec<String>, _>("scopes"),
-                "data_clusters": r.get::<Vec<String>, _>("scopes"),
-                "selected_account_ids": r.get::<Vec<String>, _>("selected_account_ids"),
-                "created_at": r.get::<chrono::DateTime<chrono::Utc>, _>("created_at"),
-                "updated_at": r.get::<chrono::DateTime<chrono::Utc>, _>("updated_at"),
-            })
+        .map(|r| RecipientConsentRow {
+            id: r.get::<Uuid, _>("id"),
+            customer_id: r.get::<Uuid, _>("customer_id"),
+            provider_id: r.get::<String, _>("provider_id"),
+            provider_name: r.get::<Option<String>, _>("provider_name").unwrap_or_default(),
+            status: r.get::<String, _>("status"),
+            scopes: r.get::<Vec<String>, _>("scopes"),
+            data_clusters: r.get::<Vec<String>, _>("scopes"),
+            selected_account_ids: r.get::<Vec<String>, _>("selected_account_ids"),
+            created_at: r.get::<chrono::DateTime<chrono::Utc>, _>("created_at"),
+            updated_at: r.get::<chrono::DateTime<chrono::Utc>, _>("updated_at"),
         })
         .collect();
-    Ok(Json(serde_json::json!({ "consents": consents })))
+    Ok(Json(RecipientConsentListResponse { consents }))
 }
 
 /// `POST /v1/recipient/consents/{id}/refresh` - trigger data refresh.
@@ -1563,7 +1569,7 @@ pub async fn list_recipient_consents(
     path = "/v1/recipient/consents/{id}/refresh",
     params(("id" = Uuid, Path, description = "Consent ID")),
     responses(
-        (status = 200, description = "Consent refreshed", body = serde_json::Value),
+        (status = 200, description = "OK", body = RecipientConsentActionResponse),
         (status = 403, description = "Missing fdx:read scope"),
         (status = 404, description = "Consent not found"),
     ),
@@ -1574,7 +1580,7 @@ pub async fn refresh_consent(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(id): Path<Uuid>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> Result<Json<RecipientConsentActionResponse>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
     crate::policy::require(
         &state.policy,
@@ -1721,13 +1727,13 @@ pub async fn refresh_consent(
                 serde_json::json!({ "consent_id": id }),
             )
             .await;
-            Ok(Json(serde_json::json!({
-                "id": r.get::<Uuid, _>("id"),
-                "customer_id": r.get::<Uuid, _>("customer_id"),
-                "provider_id": r.get::<String, _>("provider_id"),
-                "status": r.get::<String, _>("status"),
-                "scopes": r.get::<Vec<String>, _>("scopes"),
-            })))
+            Ok(Json(RecipientConsentActionResponse {
+                id: r.get::<Uuid, _>("id"),
+                customer_id: r.get::<Uuid, _>("customer_id"),
+                provider_id: r.get::<String, _>("provider_id"),
+                status: r.get::<String, _>("status"),
+                scopes: r.get::<Vec<String>, _>("scopes"),
+            }))
         }
         None => Err((StatusCode::NOT_FOUND, "consent not found".into())),
     }
@@ -1749,7 +1755,7 @@ pub async fn revoke_recipient_consent(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(id): Path<Uuid>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> Result<Json<RecipientConsentActionResponse>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
     crate::policy::require(
         &state.policy,
@@ -1846,13 +1852,13 @@ pub async fn revoke_recipient_consent(
         serde_json::json!({ "consent_id": id }),
     )
     .await;
-    Ok(Json(serde_json::json!({
-        "id": updated.get::<Uuid, _>("id"),
-        "customer_id": updated.get::<Uuid, _>("customer_id"),
-        "provider_id": updated.get::<String, _>("provider_id"),
-        "status": updated.get::<String, _>("status"),
-        "scopes": updated.get::<Vec<String>, _>("scopes"),
-    })))
+    Ok(Json(RecipientConsentActionResponse {
+        id: updated.get::<Uuid, _>("id"),
+        customer_id: updated.get::<Uuid, _>("customer_id"),
+        provider_id: updated.get::<String, _>("provider_id"),
+        status: updated.get::<String, _>("status"),
+        scopes: updated.get::<Vec<String>, _>("scopes"),
+    }))
 }
 
 /// Query params for `GET /v1/recipient/accounts`.
@@ -1874,7 +1880,7 @@ pub struct ListRecipientAccountsQuery {
     get,
     path = "/v1/recipient/accounts",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = FdxAccountsPassthrough),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -1885,7 +1891,7 @@ pub async fn list_recipient_accounts(
     State(state): State<AppState>,
     headers: HeaderMap,
     Query(q): Query<ListRecipientAccountsQuery>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> Result<Json<FdxAccountsPassthrough>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
     crate::policy::require(
         &state.policy,
@@ -1933,7 +1939,7 @@ pub async fn list_recipient_accounts(
 
     let consent_row = match consent_row {
         Some(r) => r,
-        None => return Ok(Json(serde_json::json!({ "accounts": [] }))),
+        None => return Ok(Json(FdxAccountsPassthrough(serde_json::json!({ "accounts": [] })))),
     };
     let cid: Uuid = consent_row.try_get("id").unwrap_or_default();
     let provider_id: String = consent_row.try_get("provider_id").unwrap_or_default();
@@ -2047,7 +2053,7 @@ pub async fn list_recipient_accounts(
         raw
     };
 
-    Ok(Json(serde_json::json!({ "accounts": accounts })))
+    Ok(Json(FdxAccountsPassthrough(serde_json::json!({ "accounts": accounts }))))
 }
 
 /// `GET /v1/recipient/accounts/{id}/transactions` - recipient transaction history.
@@ -2055,7 +2061,7 @@ pub async fn list_recipient_accounts(
     get,
     path = "/v1/recipient/accounts/{id}/transactions",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "Forwarded ledger transactions (CSDF-minimized)", body = FdxAccountsPassthrough),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -2066,7 +2072,7 @@ pub async fn get_recipient_account_transactions(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(account_id): Path<Uuid>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> Result<Json<FdxAccountsPassthrough>, (StatusCode, String)> {
     let _a = auth::verify_token(&state.config, &headers).await?;
     crate::policy::require(
         &state.policy,
@@ -2088,7 +2094,7 @@ pub async fn get_recipient_account_transactions(
         .json()
         .await
         .map_err(|e| (StatusCode::BAD_GATEWAY, e.to_string()))?;
-    Ok(Json(body))
+    Ok(Json(FdxAccountsPassthrough(body)))
 }
 
 /// `GET /v1/recipient/notifications` - notification feed for the recipient.
@@ -2096,7 +2102,7 @@ pub async fn get_recipient_account_transactions(
     get,
     path = "/v1/recipient/notifications",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = NotificationsListResponse),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -2106,7 +2112,7 @@ pub async fn get_recipient_account_transactions(
 pub async fn list_notifications(
     State(state): State<AppState>,
     headers: HeaderMap,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> Result<Json<NotificationsListResponse>, (StatusCode, String)> {
     let _a = auth::verify_token(&state.config, &headers).await?;
     crate::policy::require(
         &state.policy,
@@ -2115,7 +2121,9 @@ pub async fn list_notifications(
         sentin8::shield::EvalTarget::new("bank8:fdx:recipient:read"),
     )
     .await?;
-    Ok(Json(serde_json::json!({ "notifications": [] })))
+    Ok(Json(NotificationsListResponse {
+        notifications: Vec::new(),
+    }))
 }
 
 // ── Admin API (Story ) ───────────────────────────────────────────
@@ -2125,7 +2133,7 @@ pub async fn list_notifications(
     get,
     path = "/v1/admin/provider-profile",
     responses(
-        (status = 200, description = "Provider profile", body = serde_json::Value),
+        (status = 200, description = "Provider profile (or null when unset)", body = ProviderProfileResponse),
         (status = 403, description = "Missing fdx:admin scope"),
     ),
     security(("fdx:admin" = [])),
@@ -2134,7 +2142,7 @@ pub async fn list_notifications(
 pub async fn get_provider_profile(
     State(state): State<AppState>,
     headers: HeaderMap,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> Result<Json<ProviderProfileResponse>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
     crate::policy::require(
         &state.policy,
@@ -2154,14 +2162,18 @@ pub async fn get_provider_profile(
     .await
     .map_err(err_db)?;
     match row {
-        Some(r) => Ok(Json(serde_json::json!({
-            "id": r.get::<Uuid, _>("id"),
-            "provider_name" : r.get::<String, _>("provider_name"),
-            "issuer_url" : r.get::<String, _>("issuer_url"),
-            "fdx_version" : r.get::<String, _>("fdx_version"),
-            "status": r.get::<String, _>("status"),
-        }))),
-        None => Ok(Json(serde_json::json!({ "provider_profile" : null }))),
+        Some(r) => Ok(Json(ProviderProfileResponse {
+            provider_profile: Some(ProviderProfile {
+                id: r.get::<Uuid, _>("id"),
+                provider_name: r.get::<String, _>("provider_name"),
+                issuer_url: r.get::<String, _>("issuer_url"),
+                fdx_version: r.get::<String, _>("fdx_version"),
+                status: r.get::<String, _>("status"),
+            }),
+        })),
+        None => Ok(Json(ProviderProfileResponse {
+            provider_profile: None,
+        })),
     }
 }
 
@@ -2178,7 +2190,7 @@ pub struct UpdateProviderProfileRequest {
     path = "/v1/admin/provider-profile",
     request_body = UpdateProviderProfileRequest,
     responses(
-        (status = 200, description = "Provider profile updated", body = serde_json::Value),
+        (status = 200, description = "Provider profile updated", body = ProviderProfileUpdated),
         (status = 403, description = "Missing fdx:admin scope"),
     ),
     security(("fdx:admin" = [])),
@@ -2188,7 +2200,7 @@ pub async fn update_provider_profile(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(req): Json<UpdateProviderProfileRequest>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> Result<Json<ProviderProfileUpdated>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
     crate::policy::require(
         &state.policy,
@@ -2213,7 +2225,10 @@ pub async fn update_provider_profile(
     let id: Uuid = sqlx::Row::get(&row, "id");
     conn.commit().await.map_err(err_db)?;
     emit_event(&state.pool, a.env_id(), "bank8:fdx:providerprofile:updated", serde_json::json!({ "id": id, "provider_name": req.provider_name, "issuer_url": req.issuer_url, "fdx_version": req.fdx_version })).await;
-    Ok(Json(serde_json::json!({ "id": id, "status": "updated" })))
+    Ok(Json(ProviderProfileUpdated {
+        id,
+        status: "updated".into(),
+    }))
 }
 
 /// `GET /v1/admin/recipients` - list registered data recipients.
@@ -2230,7 +2245,7 @@ pub async fn update_provider_profile(
 pub async fn list_recipients(
     State(state): State<AppState>,
     headers: HeaderMap,
-) -> Result<Json<Vec<serde_json::Value>>, (StatusCode, String)> {
+) -> Result<Json<Vec<AdminRecipientRow>>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
     crate::policy::require(
         &state.policy,
@@ -2245,15 +2260,13 @@ pub async fn list_recipients(
     let rows = sqlx::query(
         r#"SELECT id, name, client_id, status, created_at FROM recipients ORDER BY created_at DESC"#,
     ).fetch_all(&mut *conn).await.map_err(err_db)?;
-    let recipients: Vec<serde_json::Value> = rows
+    let recipients: Vec<AdminRecipientRow> = rows
         .iter()
-        .map(|r| {
-            serde_json::json!({
-                "id": r.get::<Uuid, _>("id"),
-                "name": r.try_get::<String, _>("name").unwrap_or_default(),
-                "client_id" : r.try_get::<String, _>("client_id").unwrap_or_default(),
-                "status": r.try_get::<String, _>("status").unwrap_or_default(),
-            })
+        .map(|r| AdminRecipientRow {
+            id: r.get::<Uuid, _>("id"),
+            name: r.try_get::<String, _>("name").unwrap_or_default(),
+            client_id: r.try_get::<String, _>("client_id").unwrap_or_default(),
+            status: r.try_get::<String, _>("status").unwrap_or_default(),
         })
         .collect();
     Ok(Json(recipients))
@@ -2329,7 +2342,7 @@ pub async fn list_admin_audit(
     path = "/v1/admin/recipients/{id}/activate",
     params(("id" = Uuid, Path, description = "Recipient ID")),
     responses(
-        (status = 200, description = "Recipient activated", body = serde_json::Value),
+        (status = 200, description = "OK", body = AdminRecipientRow),
         (status = 403, description = "Missing fdx:admin scope"),
         (status = 404, description = "Recipient not found"),
     ),
@@ -2340,7 +2353,7 @@ pub async fn activate_recipient(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(id): Path<Uuid>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> Result<Json<AdminRecipientRow>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
     crate::policy::require(
         &state.policy,
@@ -2361,12 +2374,12 @@ pub async fn activate_recipient(
     .await
     .map_err(err_db)?;
     match row {
-        Some(r) => Ok(Json(serde_json::json!({
-            "id": r.get::<Uuid, _>("id"),
-            "name": r.try_get::<String, _>("name").unwrap_or_default(),
-            "client_id": r.try_get::<String, _>("client_id").unwrap_or_default(),
-            "status": r.try_get::<String, _>("status").unwrap_or_default(),
-        }))),
+        Some(r) => Ok(Json(AdminRecipientRow {
+            id: r.get::<Uuid, _>("id"),
+            name: r.try_get::<String, _>("name").unwrap_or_default(),
+            client_id: r.try_get::<String, _>("client_id").unwrap_or_default(),
+            status: r.try_get::<String, _>("status").unwrap_or_default(),
+        })),
         None => Err((StatusCode::NOT_FOUND, "recipient not found".into())),
     }
 }
@@ -2377,7 +2390,7 @@ pub async fn activate_recipient(
     path = "/v1/admin/recipients/{id}/suspend",
     params(("id" = Uuid, Path, description = "Recipient ID")),
     responses(
-        (status = 200, description = "Recipient suspended", body = serde_json::Value),
+        (status = 200, description = "OK", body = AdminRecipientRow),
         (status = 403, description = "Missing fdx:admin scope"),
         (status = 404, description = "Recipient not found"),
     ),
@@ -2388,7 +2401,7 @@ pub async fn suspend_recipient(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(id): Path<Uuid>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> Result<Json<AdminRecipientRow>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
     crate::policy::require(
         &state.policy,
@@ -2409,12 +2422,12 @@ pub async fn suspend_recipient(
     .await
     .map_err(err_db)?;
     match row {
-        Some(r) => Ok(Json(serde_json::json!({
-            "id": r.get::<Uuid, _>("id"),
-            "name": r.try_get::<String, _>("name").unwrap_or_default(),
-            "client_id": r.try_get::<String, _>("client_id").unwrap_or_default(),
-            "status": r.try_get::<String, _>("status").unwrap_or_default(),
-        }))),
+        Some(r) => Ok(Json(AdminRecipientRow {
+            id: r.get::<Uuid, _>("id"),
+            name: r.try_get::<String, _>("name").unwrap_or_default(),
+            client_id: r.try_get::<String, _>("client_id").unwrap_or_default(),
+            status: r.try_get::<String, _>("status").unwrap_or_default(),
+        })),
         None => Err((StatusCode::NOT_FOUND, "recipient not found".into())),
     }
 }
@@ -2425,7 +2438,7 @@ pub async fn suspend_recipient(
     path = "/v1/recipient/providers/{id}",
     params(("id" = String, Path, description = "Provider ID")),
     responses(
-        (status = 200, description = "FDX data provider detail", body = serde_json::Value),
+        (status = 200, description = "OK", body = ProviderCard),
         (status = 403, description = "Missing fdx:read scope"),
         (status = 404, description = "Provider not found"),
     ),
@@ -2436,7 +2449,7 @@ pub async fn get_recipient_provider(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(id): Path<String>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> Result<Json<ProviderCard>, (StatusCode, String)> {
     let _a = auth::verify_token(&state.config, &headers).await?;
     crate::policy::require(
         &state.policy,
@@ -2468,14 +2481,14 @@ pub async fn get_recipient_provider(
                         .collect()
                 })
                 .unwrap_or_default();
-            Ok(Json(serde_json::json!({
-                "id": r.get::<Uuid, _>("id"),
-                "name": r.get::<String, _>("provider_name"),
-                "issuer_url": r.get::<String, _>("issuer_url"),
-                "fdx_version": r.get::<String, _>("fdx_version"),
-                "supportedDataClusters": clusters,
-                "status": r.get::<String, _>("status"),
-            })))
+            Ok(Json(ProviderCard {
+                id: r.get::<Uuid, _>("id"),
+                name: r.get::<String, _>("provider_name"),
+                issuer_url: r.get::<String, _>("issuer_url"),
+                fdx_version: r.get::<String, _>("fdx_version"),
+                supported_data_clusters: clusters,
+                status: r.get::<String, _>("status"),
+            }))
         }
         None => Err((StatusCode::NOT_FOUND, "provider not found".into())),
     }
@@ -2498,7 +2511,7 @@ pub async fn get_recipient_consent(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(id): Path<Uuid>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> Result<Json<RecipientConsentRow>, (StatusCode, String)> {
     let a = auth::verify_token(&state.config, &headers).await?;
     crate::policy::require(
         &state.policy,
@@ -2522,18 +2535,18 @@ pub async fn get_recipient_consent(
     .map_err(err_db)?;
     let _ = conn.commit().await;
     match row {
-        Some(r) => Ok(Json(serde_json::json!({
-            "id": r.get::<Uuid, _>("id"),
-            "customer_id": r.get::<Uuid, _>("customer_id"),
-            "provider_id": r.get::<String, _>("provider_id"),
-            "provider_name": r.get::<Option<String>, _>("provider_name").unwrap_or_default(),
-            "status": r.get::<String, _>("status"),
-            "scopes": r.get::<Vec<String>, _>("scopes"),
-            "data_clusters": r.get::<Vec<String>, _>("scopes"),
-            "selected_account_ids": r.get::<Vec<String>, _>("selected_account_ids"),
-            "created_at": r.get::<chrono::DateTime<chrono::Utc>, _>("created_at"),
-            "updated_at": r.get::<chrono::DateTime<chrono::Utc>, _>("updated_at"),
-        }))),
+        Some(r) => Ok(Json(RecipientConsentRow {
+            id: r.get::<Uuid, _>("id"),
+            customer_id: r.get::<Uuid, _>("customer_id"),
+            provider_id: r.get::<String, _>("provider_id"),
+            provider_name: r.get::<Option<String>, _>("provider_name").unwrap_or_default(),
+            status: r.get::<String, _>("status"),
+            scopes: r.get::<Vec<String>, _>("scopes"),
+            data_clusters: r.get::<Vec<String>, _>("scopes"),
+            selected_account_ids: r.get::<Vec<String>, _>("selected_account_ids"),
+            created_at: r.get::<chrono::DateTime<chrono::Utc>, _>("created_at"),
+            updated_at: r.get::<chrono::DateTime<chrono::Utc>, _>("updated_at"),
+        })),
         None => Err((
             StatusCode::NOT_FOUND,
             "consent not found in the recipient registry".into(),
@@ -2547,14 +2560,14 @@ pub async fn get_recipient_consent(
 #[utoipa::path(
     post,
     path = "/v1/internal/steps/execute",
+    request_body = crate::flow::ProxyBackRequest,
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = ProxyBackResponse),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
     security(),
-    tag = "internal",
-)]
+    tag = "internal",)]
 pub async fn execute_step(
     State(_state): State<AppState>,
     _headers: HeaderMap,
@@ -2570,17 +2583,20 @@ pub async fn execute_step(
     get,
     path = "/v1/health",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = ServiceHealth),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
     security(),
     tag = "meta",
 )]
-pub async fn health() -> Json<serde_json::Value> {
-    Json(
-        serde_json::json!({ "status": "ok", "service": "fdx", "version": sentin8::build_info::id(), "build": sentin8::build_info::build_hash() }),
-    )
+pub async fn health() -> Json<ServiceHealth> {
+    Json(ServiceHealth {
+        status: "ok".into(),
+        service: "fdx".into(),
+        version: sentin8::build_info::id().into(),
+        build: sentin8::build_info::build_hash().into(),
+    })
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────

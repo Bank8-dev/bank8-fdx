@@ -17,6 +17,7 @@ use sqlx::Row;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use crate::dtos::*;
 use crate::common::{db_err, set_tenant_context};
 use crate::csdf;
 use crate::errors::FdxErrorResponse;
@@ -55,14 +56,14 @@ pub struct PipPartyResponse {
 #[utoipa::path(
     post,
     path = "/fdx/v6/payment-initiation-parties",
+    request_body = CreatePipPartyRequest,
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "Created PIP party", body = PipPartyResponse),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
     security(),
-    tag = "fdx",
-)]
+    tag = "fdx",)]
 pub async fn create_pip_party(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -110,7 +111,7 @@ pub async fn create_pip_party(
     get,
     path = "/fdx/v6/payment-initiation-parties/{partyId}",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = PipPartyDetail),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -121,7 +122,7 @@ pub async fn get_pip_party(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(party_id): Path<Uuid>,
-) -> Result<Json<JsonValue>, Response> {
+) -> Result<Json<PipPartyDetail>, Response> {
     let _a =
         middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
     // Same-transaction discipline (fdx DESIGN.md §5) - see start_consent.
@@ -136,16 +137,16 @@ pub async fn get_pip_party(
     .await
     .map_err(db_err)?
     .ok_or_else(|| FdxErrorResponse::new(404, "1107", "Data not found for request parameters"))?;
-    Ok(Json(serde_json::json!({
-        "paymentInitiationPartyId": row.get::<Uuid, _>("id"),
-        "partyName": row.get::<String, _>("party_name"),
-        "partyType": row.get::<String, _>("party_type"),
-        "contact": row.get::<JsonValue, _>("contact"),
-        "registry": row.get::<Option<String>, _>("registry"),
-        "registeredId": row.get::<Option<String>, _>("registered_id"),
-        "status": row.get::<String, _>("status"),
-        "createdAt": row.get::<chrono::DateTime<chrono::Utc>, _>("created_at"),
-    })))
+    Ok(Json(PipPartyDetail {
+        payment_initiation_party_id: row.get::<Uuid, _>("id"),
+        party_name: row.get::<String, _>("party_name"),
+        party_type: row.get::<String, _>("party_type"),
+        contact: row.get::<JsonValue, _>("contact"),
+        registry: row.get::<Option<String>, _>("registry"),
+        registered_id: row.get::<Option<String>, _>("registered_id"),
+        status: row.get::<String, _>("status"),
+        created_at: row.get::<chrono::DateTime<chrono::Utc>, _>("created_at"),
+    }))
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -162,20 +163,20 @@ pub struct CreatePipPaymentMethodRequest {
 #[utoipa::path(
     post,
     path = "/fdx/v6/payment-initiation-parties/{partyId}/payment-methods",
+    request_body = CreatePipPaymentMethodRequest,
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = PipPaymentMethodRegistered),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
     security(),
-    tag = "fdx",
-)]
+    tag = "fdx",)]
 pub async fn create_pip_payment_method(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(party_id): Path<Uuid>,
     Json(req): Json<CreatePipPaymentMethodRequest>,
-) -> Result<Json<JsonValue>, Response> {
+) -> Result<Json<PipPaymentMethodRegistered>, Response> {
     let a = middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
     // Same-transaction discipline (fdx DESIGN.md §5) - see start_consent.
     let mut conn = state.pool.begin().await.map_err(db_err)?;
@@ -193,11 +194,11 @@ pub async fn create_pip_payment_method(
     .await
     .map_err(db_err)?;
     conn.commit().await.map_err(db_err)?;
-    Ok(Json(serde_json::json!({
-        "paymentMethodRegistrationId": row.get::<Uuid, _>("id"),
-        "methodType": req.method_type,
-        "status": "active",
-    })))
+    Ok(Json(PipPaymentMethodRegistered {
+        payment_method_registration_id: row.get::<Uuid, _>("id"),
+        method_type: req.method_type,
+        status: "active".into(),
+    }))
 }
 
 /// `DELETE /fdx/v6/payment-initiation-parties/{partyId}/payment-methods/{regId}`
@@ -206,7 +207,7 @@ pub async fn create_pip_payment_method(
     delete,
     path = "/fdx/v6/payment-initiation-parties/{partyId}/payment-methods/{regId}",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = PipPaymentMethodRevoked),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -217,7 +218,7 @@ pub async fn revoke_pip_payment_method(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path((party_id, reg_id)): Path<(Uuid, Uuid)>,
-) -> Result<Json<JsonValue>, Response> {
+) -> Result<Json<PipPaymentMethodRevoked>, Response> {
     let a = middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
     // Same-transaction discipline (fdx DESIGN.md §5) - see start_consent.
     let mut conn = state.pool.begin().await.map_err(db_err)?;
@@ -237,7 +238,8 @@ pub async fn revoke_pip_payment_method(
         );
     }
     conn.commit().await.map_err(db_err)?;
-    Ok(Json(
-        serde_json::json!({ "paymentMethodRegistrationId": reg_id, "status": "revoked" }),
-    ))
+    Ok(Json(PipPaymentMethodRevoked {
+        payment_method_registration_id: reg_id,
+        status: "revoked".into(),
+    }))
 }

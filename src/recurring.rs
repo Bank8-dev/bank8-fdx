@@ -17,6 +17,7 @@ use serde_json::Value as JsonValue;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use crate::dtos::*;
 use crate::csdf;
 use crate::errors::FdxErrorResponse;
 use crate::handlers::{emit_event, AppState};
@@ -63,7 +64,7 @@ pub struct CreateRecurringPaymentRequest {
     post,
     path = "/fdx/v6/recurring-payments",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = FdxAccountsPassthrough),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -74,7 +75,7 @@ pub async fn create_recurring_payment(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(req): Json<CreateRecurringPaymentRequest>,
-) -> Result<Json<JsonValue>, Response> {
+) -> Result<Json<RecurringPaymentCreated>, Response> {
     let a = middleware::provider_authz(&state, &headers, Some(csdf::DataCluster::Payments)).await?;
     // Map the FDX frequency to an RFC 5545 RRULE (Sentin8:Cron is the
     // scheduler; payments `POST /v1beta/scheduled-payments` persists it).
@@ -114,12 +115,12 @@ pub async fn create_recurring_payment(
         serde_json::json!({ "recurring_payment_id": id }),
     )
     .await;
-    Ok(Json(serde_json::json!({
-        "recurringPaymentId": id,
-        "frequency": req.frequency,
-        "status": "ACTIVE",
-        "payments_service": body,
-    })))
+    Ok(Json(RecurringPaymentCreated {
+        recurring_payment_id: id,
+        frequency: req.frequency,
+        status: "ACTIVE".into(),
+        payments_service: body,
+    }))
 }
 
 /// Map an FDX frequency enum to an RFC 5545 RRULE FREQ part (UTC-only;
@@ -140,7 +141,7 @@ pub fn frequency_to_rrule(frequency: &str) -> Option<String> {
     get,
     path = "/fdx/v6/recurring-payments",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "Forwarded scheduled-payments list", body = FdxAccountsPassthrough),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -161,7 +162,7 @@ pub async fn list_recurring_payments(
     get,
     path = "/fdx/v6/recurring-payments/{recurringPaymentId}",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = FdxAccountsPassthrough),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -184,7 +185,7 @@ pub async fn get_recurring_payment(
     get,
     path = "/fdx/v6/recurring-payments/{recurringPaymentId}/payments",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = FdxAccountsPassthrough),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),

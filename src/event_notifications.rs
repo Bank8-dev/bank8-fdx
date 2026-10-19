@@ -22,6 +22,7 @@ use sqlx::Row;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use crate::dtos::*;
 use crate::common::{db_err, set_tenant_context};
 use crate::errors::FdxErrorResponse;
 use crate::handlers::{emit_event, AppState};
@@ -91,7 +92,7 @@ pub fn is_https_url_valid(url: &str) -> bool {
     post,
     path = "/fdx/v6/notification-subscriptions",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = NotificationSubscription),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -102,7 +103,7 @@ pub async fn create_notification_subscription(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(req): Json<CreateSubscriptionRequest>,
-) -> Result<Json<JsonValue>, Response> {
+) -> Result<Json<NotificationSubscription>, Response> {
     let a = middleware::provider_authz(&state, &headers, None).await?;
     validate_subscription_type(&req.event_type, &req.category)
         .map_err(FdxErrorResponse::bad_request)?;
@@ -141,14 +142,15 @@ pub async fn create_notification_subscription(
         serde_json::json!({ "subscription_id": id }),
     )
     .await;
-    Ok(Json(serde_json::json!({
-        "subscriptionId": id,
-        "type": row.get::<String, _>("event_type"),
-        "category": row.get::<String, _>("category"),
-        "callbackUrl": row.get::<String, _>("callback_url"),
-        "status": row.get::<String, _>("status"),
-        "effectiveDate": row.get::<chrono::DateTime<chrono::Utc>, _>("created_at"),
-    })))
+    Ok(Json(NotificationSubscription {
+        subscription_id: id,
+        r#type: row.get::<String, _>("event_type"),
+        category: row.get::<String, _>("category"),
+        callback_url: row.get::<String, _>("callback_url"),
+        subscriber: serde_json::json!({}),
+        status: row.get::<String, _>("status"),
+        effective_date: row.get::<chrono::DateTime<chrono::Utc>, _>("created_at"),
+    }))
 }
 
 /// Store the subscription signing secret in the local secrets store
@@ -170,7 +172,7 @@ async fn store_subscription_secret(
     get,
     path = "/fdx/v6/notification-subscriptions",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "Subscriptions", body = NotificationSubscriptionListResponse),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -218,7 +220,7 @@ pub async fn list_notification_subscriptions(
     get,
     path = "/fdx/v6/notification-subscriptions/{subscriptionId}",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = NotificationSubscription),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -229,7 +231,7 @@ pub async fn get_notification_subscription(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(sub_id): Path<Uuid>,
-) -> Result<Json<JsonValue>, Response> {
+) -> Result<Json<NotificationSubscription>, Response> {
     let a = middleware::provider_authz(&state, &headers, None).await?;
     // Same-transaction discipline (fdx DESIGN.md §5) - see start_consent.
     let mut conn = state.pool.begin().await.map_err(db_err)?;
@@ -244,15 +246,15 @@ pub async fn get_notification_subscription(
     .await
     .map_err(db_err)?
     .ok_or_else(|| FdxErrorResponse::new(404, "1107", "Data not found for request parameters"))?;
-    Ok(Json(serde_json::json!({
-        "subscriptionId": row.get::<Uuid, _>("id"),
-        "type": row.get::<String, _>("event_type"),
-        "category": row.get::<String, _>("category"),
-        "callbackUrl": row.get::<String, _>("callback_url"),
-        "subscriber": row.get::<JsonValue, _>("subscriber"),
-        "status": row.get::<String, _>("status"),
-        "effectiveDate": row.get::<chrono::DateTime<chrono::Utc>, _>("created_at"),
-    })))
+    Ok(Json(NotificationSubscription {
+        subscription_id: row.get::<Uuid, _>("id"),
+        r#type: row.get::<String, _>("event_type"),
+        category: row.get::<String, _>("category"),
+        callback_url: row.get::<String, _>("callback_url"),
+        subscriber: row.get::<JsonValue, _>("subscriber"),
+        status: row.get::<String, _>("status"),
+        effective_date: row.get::<chrono::DateTime<chrono::Utc>, _>("created_at"),
+    }))
 }
 
 /// `DELETE /fdx/v6/notification-subscriptions/{subscriptionId}` - delete a
@@ -261,7 +263,7 @@ pub async fn get_notification_subscription(
     delete,
     path = "/fdx/v6/notification-subscriptions/{subscriptionId}",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 204, description = "Subscription deleted (no content)"),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -326,7 +328,7 @@ pub struct PublishNotificationRequest {
     post,
     path = "/fdx/v6/notifications",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "OK", body = NotificationListResponse),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -337,7 +339,7 @@ pub async fn publish_notification(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(req): Json<PublishNotificationRequest>,
-) -> Result<Json<JsonValue>, Response> {
+) -> Result<Json<NotificationAcceptedResponse>, Response> {
     let a = middleware::provider_authz(&state, &headers, None).await?;
     // Same-transaction discipline (fdx DESIGN.md §5) - see start_consent.
     let mut conn = state.pool.begin().await.map_err(db_err)?;
@@ -366,11 +368,11 @@ pub async fn publish_notification(
         serde_json::json!({ "notification_id": id, "notification_type": req.notification_type }),
     )
     .await;
-    Ok(Json(serde_json::json!({
-        "notificationId": id,
-        "status": "accepted",
-        "createdAt": row.get::<chrono::DateTime<chrono::Utc>, _>("created_at"),
-    })))
+    Ok(Json(NotificationAcceptedResponse {
+        notification_id: id,
+        status: "accepted".into(),
+        created_at: row.get::<chrono::DateTime<chrono::Utc>, _>("created_at"),
+    }))
 }
 
 /// `GET /fdx/v6/notifications` - notification feed (polling alternative to
@@ -379,7 +381,7 @@ pub async fn publish_notification(
     get,
     path = "/fdx/v6/notifications",
     responses(
-        (status = 200, description = "OK", body = serde_json::Value),
+        (status = 200, description = "Notification feed", body = NotificationListResponse),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Missing the FDX consent/scope gate"),
     ),
@@ -390,7 +392,7 @@ pub async fn list_notifications_feed(
     State(state): State<AppState>,
     headers: HeaderMap,
     Query(q): Query<FeedQuery>,
-) -> Result<Json<JsonValue>, Response> {
+) -> Result<Json<NotificationListResponse>, Response> {
     let a = middleware::provider_authz(&state, &headers, None).await?;
     // Same-transaction discipline (fdx DESIGN.md §5) - see start_consent.
     let mut conn = state.pool.begin().await.map_err(db_err)?;
@@ -406,22 +408,20 @@ pub async fn list_notifications_feed(
     .fetch_all(&mut *conn)
     .await
     .map_err(db_err)?;
-    let items: Vec<JsonValue> = rows
+    let items: Vec<NotificationFeedRow> = rows
         .iter()
-        .map(|r| {
-            serde_json::json!({
-                "notificationId": r.get::<Uuid, _>("id"),
-                "type": r.get::<String, _>("notification_type"),
-                "category": r.get::<Option<String>, _>("category"),
-                "severity": r.get::<Option<String>, _>("severity"),
-                "priority": r.get::<Option<String>, _>("priority"),
-                "payload": r.get::<JsonValue, _>("payload"),
-                "deliveryStatus": r.get::<String, _>("delivery_status"),
-                "sentOn": r.get::<chrono::DateTime<chrono::Utc>, _>("created_at"),
-            })
+        .map(|r| NotificationFeedRow {
+            notification_id: r.get::<Uuid, _>("id"),
+            r#type: r.get::<String, _>("notification_type"),
+            category: r.get::<Option<String>, _>("category"),
+            severity: r.get::<Option<String>, _>("severity"),
+            priority: r.get::<Option<String>, _>("priority"),
+            payload: r.get::<JsonValue, _>("payload"),
+            delivery_status: r.get::<String, _>("delivery_status"),
+            sent_on: r.get::<chrono::DateTime<chrono::Utc>, _>("created_at"),
         })
         .collect();
-    Ok(Json(serde_json::json!({ "notifications": items })))
+    Ok(Json(NotificationListResponse { notifications: items }))
 }
 
 #[derive(Debug, Deserialize, ToSchema)]

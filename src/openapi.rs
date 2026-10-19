@@ -10,6 +10,11 @@
 use utoipa::OpenApi;
 
 use crate::flow;
+use crate::dtos;
+use crate::payment_networks;
+use crate::consent_records;
+use crate::pip;
+use crate::consent_rfw;
 use crate::handlers;
 
 /// OpenAPI spec for the FDX admin and recipient API.
@@ -116,6 +121,47 @@ use crate::handlers;
         handlers::UpdateProviderProfileRequest,
         flow::ProxyBackRequest,
         flow::ProxyBackResponse,
+        dtos::FdxAccountsPassthrough,
+        dtos::FdxConsentIntrospection,
+        dtos::FdxConsentResource,
+        dtos::ProviderCard,
+        dtos::ProviderCatalogResponse,
+        dtos::FdxCapability,
+        dtos::FdxAvailability,
+        dtos::CertificationMetrics,
+        dtos::CertificationMetricCounters,
+        dtos::ConsentStartResponse,
+        dtos::RecipientConsentRow,
+        dtos::RecipientConsentListResponse,
+        dtos::RecipientConsentActionResponse,
+        dtos::NotificationsListResponse,
+        dtos::ProviderProfile,
+        dtos::ProviderProfileResponse,
+        dtos::ProviderProfileUpdated,
+        dtos::AdminRecipientRow,
+        dtos::AdminAuditRow,
+        dtos::ServiceHealth,
+        dtos::ConsentRevocationRecord,
+        dtos::ConsentLifecycleResponse,
+        dtos::ConsentRedirectResponse,
+        dtos::NotificationSubscription,
+        dtos::NotificationSubscriptionListResponse,
+        dtos::NotificationAcceptedResponse,
+        dtos::NotificationFeedRow,
+        dtos::NotificationListResponse,
+        dtos::PaymentNetworkRevocationEvent,
+        dtos::PaymentNetworkRevocationListResponse,
+        dtos::PipPartyDetail,
+        dtos::PipPaymentMethodRegistered,
+        dtos::PipPaymentMethodRevoked,
+        dtos::RecurringPaymentCreated,
+        dtos::OperationSupport,
+        payment_networks::RevocationRequest,
+        consent_records::UpdateConsentLifecycleRequest,
+        pip::CreatePipPartyRequest,
+        pip::CreatePipPaymentMethodRequest,
+        consent_rfw::ConsentApproveRequest,
+        consent_rfw::ConsentDenyRequest,
     )),
     security(),
     tags(
