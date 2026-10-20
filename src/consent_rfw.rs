@@ -16,10 +16,10 @@ use axum::{
 };
 use serde::Deserialize;
 
-use utoipa::ToSchema;
-use crate::dtos::*;
 use crate::auth;
+use crate::dtos::*;
 use crate::handlers::AppState;
+use utoipa::ToSchema;
 
 /// Query params for `GET /v1/auth/consent/ui` - the RFW consent page request.
 #[derive(Debug, Deserialize)]
@@ -242,7 +242,9 @@ pub async fn auth_consent_accounts(
         })
         .collect();
 
-    Ok(Json(FdxAccountsPassthrough(serde_json::json!({ "accounts": normalized }))))
+    Ok(Json(FdxAccountsPassthrough(
+        serde_json::json!({ "accounts": normalized }),
+    )))
 }
 
 /// `POST /v1/auth/consent/approve` - process consent approval.
@@ -288,9 +290,7 @@ pub async fn auth_consent_approve(
         url.push_str(&format!("&selected_account_ids={}", account_ids.join(",")));
     }
 
-    Ok(Json(ConsentRedirectResponse {
-        redirect_url: url,
-    }))
+    Ok(Json(ConsentRedirectResponse { redirect_url: url }))
 }
 
 /// `POST /v1/auth/consent/deny` - record consent denial.

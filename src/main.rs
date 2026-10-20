@@ -14,8 +14,6 @@
 // allocation in the process routes through it). Rationale in the workspace
 // Cargo.toml: glibc's per-thread arenas fragment under the many-worker tokio
 // runtime and never return memory; measured 4 MB+ RSS growth per request
-#[allow(dead_code)]
-mod dtos;
 mod admin_ui;
 #[allow(dead_code)]
 mod auth;
@@ -27,6 +25,8 @@ mod consent_records;
 mod consent_rfw;
 #[allow(dead_code)]
 mod csdf;
+#[allow(dead_code)]
+mod dtos;
 #[allow(dead_code)]
 mod errors;
 mod event_consumer;

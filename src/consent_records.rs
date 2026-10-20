@@ -17,8 +17,8 @@ use sqlx::Row;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::dtos::*;
 use crate::common::{db_err, set_tenant_context};
+use crate::dtos::*;
 use crate::errors::FdxErrorResponse;
 use crate::event_notifications::queue_consent_revoked_notification;
 use crate::handlers::{emit_event, AppState};

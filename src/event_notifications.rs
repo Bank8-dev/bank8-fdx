@@ -22,8 +22,8 @@ use sqlx::Row;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::dtos::*;
 use crate::common::{db_err, set_tenant_context};
+use crate::dtos::*;
 use crate::errors::FdxErrorResponse;
 use crate::handlers::{emit_event, AppState};
 use crate::middleware;
@@ -421,7 +421,9 @@ pub async fn list_notifications_feed(
             sent_on: r.get::<chrono::DateTime<chrono::Utc>, _>("created_at"),
         })
         .collect();
-    Ok(Json(NotificationListResponse { notifications: items }))
+    Ok(Json(NotificationListResponse {
+        notifications: items,
+    }))
 }
 
 #[derive(Debug, Deserialize, ToSchema)]

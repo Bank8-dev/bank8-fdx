@@ -9,13 +9,13 @@
 
 use utoipa::OpenApi;
 
-use crate::flow;
-use crate::dtos;
-use crate::payment_networks;
 use crate::consent_records;
-use crate::pip;
 use crate::consent_rfw;
+use crate::dtos;
+use crate::flow;
 use crate::handlers;
+use crate::payment_networks;
+use crate::pip;
 
 /// OpenAPI spec for the FDX admin and recipient API.
 #[derive(OpenApi)]
@@ -168,4 +168,5 @@ use crate::handlers;
         (name = "policy", description = "Shield policy administration (shared surface)"),
         (name = "fdx", description = "Bank8:FDX - open banking, FDX v6.5 provider/recipient"),
     ),
-)]pub struct FdxOpenApi;
+)]
+pub struct FdxOpenApi;

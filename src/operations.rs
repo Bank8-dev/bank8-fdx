@@ -81,8 +81,40 @@ pub async fn get_operation_support(
     let _a = middleware::provider_authz(&state, &headers, None).await?;
     let _ = state;
     Ok(Json(OperationSupport {
-        implemented: vec!["accounts".into(), "transactions".into(), "statements".into(), "customers".into(), "consents".into(), "transfers".into(), "payments".into(), "payees".into(), "payment-initiation-parties".into(), "recurring-payments".into(), "payment-networks".into(), "notification-subscriptions".into(), "notifications".into(), "register".into(), "capability".into(), "availability".into(), "certification-metrics".into()],
-        out_of_scope: vec!["reward-programs".into(), "transaction-images".into(), "tax-forms".into(), "payroll".into(), "fraud".into(), "data-providers".into(), "recipients-registry".into(), "terms-and-conditions".into(), "contacts".into(), "bills".into(), "investments".into(), "social-security".into(), "digital-wallet".into()],
+        implemented: vec![
+            "accounts".into(),
+            "transactions".into(),
+            "statements".into(),
+            "customers".into(),
+            "consents".into(),
+            "transfers".into(),
+            "payments".into(),
+            "payees".into(),
+            "payment-initiation-parties".into(),
+            "recurring-payments".into(),
+            "payment-networks".into(),
+            "notification-subscriptions".into(),
+            "notifications".into(),
+            "register".into(),
+            "capability".into(),
+            "availability".into(),
+            "certification-metrics".into(),
+        ],
+        out_of_scope: vec![
+            "reward-programs".into(),
+            "transaction-images".into(),
+            "tax-forms".into(),
+            "payroll".into(),
+            "fraud".into(),
+            "data-providers".into(),
+            "recipients-registry".into(),
+            "terms-and-conditions".into(),
+            "contacts".into(),
+            "bills".into(),
+            "investments".into(),
+            "social-security".into(),
+            "digital-wallet".into(),
+        ],
     }))
 }
 

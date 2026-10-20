@@ -17,9 +17,9 @@ use sqlx::Row;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::dtos::*;
 use crate::common::{db_err, set_tenant_context};
 use crate::csdf;
+use crate::dtos::*;
 use crate::errors::FdxErrorResponse;
 use crate::handlers::{emit_event, AppState};
 
@@ -91,7 +91,9 @@ pub async fn get_payment_network(
                 .into_response(),
         );
     }
-    Ok(Json(FdxAccountsPassthrough(serde_json::json!({ "paymentNetworks": matched }))))
+    Ok(Json(FdxAccountsPassthrough(
+        serde_json::json!({ "paymentNetworks": matched }),
+    )))
 }
 
 /// The FDX RevocationRequest (reason/initiator/otherReason) - shared by the

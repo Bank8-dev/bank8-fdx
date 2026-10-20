@@ -18,12 +18,12 @@ use sqlx::Row;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::dtos::*;
-use crate::flow::ProxyBackResponse;
 use crate::auth;
 use crate::config::Fdx8Config;
 use crate::csdf;
+use crate::dtos::*;
 use crate::errors::FdxErrorResponse;
+use crate::flow::ProxyBackResponse;
 use crate::middleware::{self, consent_filter_from_headers, minimize_response};
 
 /// The fdx→ledger proxy transport (CERTFREE-8V): the boot-built
@@ -75,10 +75,9 @@ pub struct AppState {
 /// share one cache, like the `Arc`-wrapped engine).
 #[derive(Default)]
 pub struct CertMetricsCache {
-    entries:
-        std::sync::Mutex<
-            std::collections::HashMap<Uuid, (crate::dtos::CertificationMetrics, std::time::Instant)>,
-        >,
+    entries: std::sync::Mutex<
+        std::collections::HashMap<Uuid, (crate::dtos::CertificationMetrics, std::time::Instant)>,
+    >,
 }
 
 impl Clone for CertMetricsCache {
@@ -384,7 +383,9 @@ pub async fn get_accounts(
     let filter = consent_filter_from_headers(&state, &headers).await;
     // Wrap in FDX response format, then apply CSDF minimization (§7).
     let wrapped = serde_json::json!({ "accounts": body });
-    Ok(Json(FdxAccountsPassthrough(minimize_response(&wrapped, &filter))))
+    Ok(Json(FdxAccountsPassthrough(minimize_response(
+        &wrapped, &filter,
+    ))))
 }
 
 /// `GET /fdx/v6/accounts/{accountId}` - account detail (proxies to Ledger).
@@ -420,7 +421,9 @@ pub async fn get_account_detail(
         .await
         .map_err(|e| FdxErrorResponse::internal(format!("ledger decode: {e}")))?;
     let filter = consent_filter_from_headers(&state, &headers).await;
-    Ok(Json(FdxAccountsPassthrough(minimize_response(&body, &filter))))
+    Ok(Json(FdxAccountsPassthrough(minimize_response(
+        &body, &filter,
+    ))))
 }
 
 /// `GET /fdx/v6/accounts/{accountId}/transactions` - transactions (proxies
@@ -457,7 +460,9 @@ pub async fn get_account_transactions(
         .await
         .map_err(|e| FdxErrorResponse::internal(format!("ledger decode: {e}")))?;
     let filter = consent_filter_from_headers(&state, &headers).await;
-    Ok(Json(FdxAccountsPassthrough(minimize_response(&body, &filter))))
+    Ok(Json(FdxAccountsPassthrough(minimize_response(
+        &body, &filter,
+    ))))
 }
 
 // ── FDX consent introspection + revocation (design §5.1) ────────────────
@@ -678,7 +683,9 @@ pub async fn list_account_statements(
         .map_err(|e| FdxErrorResponse::internal(format!("ledger decode: {e}")))?;
     let filter = consent_filter_from_headers(&state, &headers).await;
     let wrapped = serde_json::json!({ "statements": body });
-    Ok(Json(FdxAccountsPassthrough(minimize_response(&wrapped, &filter))))
+    Ok(Json(FdxAccountsPassthrough(minimize_response(
+        &wrapped, &filter,
+    ))))
 }
 
 /// `GET /fdx/v6/accounts/{accountId}/payment-networks` - payment network info.
@@ -715,7 +722,9 @@ pub async fn get_payment_networks(
         .map_err(|e| FdxErrorResponse::internal(format!("ledger decode: {e}")))?;
     let filter = consent_filter_from_headers(&state, &headers).await;
     let wrapped = serde_json::json!({ "payment_networks": body });
-    Ok(Json(FdxAccountsPassthrough(minimize_response(&wrapped, &filter))))
+    Ok(Json(FdxAccountsPassthrough(minimize_response(
+        &wrapped, &filter,
+    ))))
 }
 
 /// `GET /fdx/v6/customers` - list customers (proxy to Ledger).
@@ -748,7 +757,9 @@ pub async fn list_customers(
         .map_err(|e| FdxErrorResponse::internal(format!("ledger decode: {e}")))?;
     let filter = consent_filter_from_headers(&state, &headers).await;
     let wrapped = serde_json::json!({ "customers": body });
-    Ok(Json(FdxAccountsPassthrough(minimize_response(&wrapped, &filter))))
+    Ok(Json(FdxAccountsPassthrough(minimize_response(
+        &wrapped, &filter,
+    ))))
 }
 
 /// `GET /fdx/v6/customers/current` - current customer (proxy to Ledger).
@@ -785,7 +796,9 @@ pub async fn get_current_customer(
         .await
         .map_err(|e| FdxErrorResponse::internal(format!("ledger decode: {e}")))?;
     let filter = consent_filter_from_headers(&state, &headers).await;
-    Ok(Json(FdxAccountsPassthrough(minimize_response(&body, &filter))))
+    Ok(Json(FdxAccountsPassthrough(minimize_response(
+        &body, &filter,
+    ))))
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -911,15 +924,26 @@ pub async fn get_capability() -> Json<FdxCapability> {
     Json(FdxCapability {
         fdx_version: "6.5".into(),
         capabilities: vec![
-            "ACCOUNTS", "TRANSACTIONS", "STATEMENTS", "PAYMENTS", "TRANSFERS",
-            "CUSTOMERS", "TAX", "NOTIFICATIONS",
+            "ACCOUNTS",
+            "TRANSACTIONS",
+            "STATEMENTS",
+            "PAYMENTS",
+            "TRANSFERS",
+            "CUSTOMERS",
+            "TAX",
+            "NOTIFICATIONS",
         ]
         .into_iter()
         .map(String::from)
         .collect(),
         data_clusters: vec![
-            "ACCOUNTS", "PAYMENTS", "STATEMENTS", "CUSTOMERS", "TRANSACTIONS",
-            "TRANSFERS", "TAX",
+            "ACCOUNTS",
+            "PAYMENTS",
+            "STATEMENTS",
+            "CUSTOMERS",
+            "TRANSACTIONS",
+            "TRANSFERS",
+            "TAX",
         ]
         .into_iter()
         .map(String::from)
@@ -1545,13 +1569,15 @@ pub async fn list_recipient_consents(
     .await
     .map_err(err_db)?;
     let _ = conn.commit().await;
-        let consents: Vec<RecipientConsentRow> = rows
+    let consents: Vec<RecipientConsentRow> = rows
         .iter()
         .map(|r| RecipientConsentRow {
             id: r.get::<Uuid, _>("id"),
             customer_id: r.get::<Uuid, _>("customer_id"),
             provider_id: r.get::<String, _>("provider_id"),
-            provider_name: r.get::<Option<String>, _>("provider_name").unwrap_or_default(),
+            provider_name: r
+                .get::<Option<String>, _>("provider_name")
+                .unwrap_or_default(),
             status: r.get::<String, _>("status"),
             scopes: r.get::<Vec<String>, _>("scopes"),
             data_clusters: r.get::<Vec<String>, _>("scopes"),
@@ -1939,7 +1965,11 @@ pub async fn list_recipient_accounts(
 
     let consent_row = match consent_row {
         Some(r) => r,
-        None => return Ok(Json(FdxAccountsPassthrough(serde_json::json!({ "accounts": [] })))),
+        None => {
+            return Ok(Json(FdxAccountsPassthrough(
+                serde_json::json!({ "accounts": [] }),
+            )))
+        }
     };
     let cid: Uuid = consent_row.try_get("id").unwrap_or_default();
     let provider_id: String = consent_row.try_get("provider_id").unwrap_or_default();
@@ -2053,7 +2083,9 @@ pub async fn list_recipient_accounts(
         raw
     };
 
-    Ok(Json(FdxAccountsPassthrough(serde_json::json!({ "accounts": accounts }))))
+    Ok(Json(FdxAccountsPassthrough(
+        serde_json::json!({ "accounts": accounts }),
+    )))
 }
 
 /// `GET /v1/recipient/accounts/{id}/transactions` - recipient transaction history.
@@ -2539,7 +2571,9 @@ pub async fn get_recipient_consent(
             id: r.get::<Uuid, _>("id"),
             customer_id: r.get::<Uuid, _>("customer_id"),
             provider_id: r.get::<String, _>("provider_id"),
-            provider_name: r.get::<Option<String>, _>("provider_name").unwrap_or_default(),
+            provider_name: r
+                .get::<Option<String>, _>("provider_name")
+                .unwrap_or_default(),
             status: r.get::<String, _>("status"),
             scopes: r.get::<Vec<String>, _>("scopes"),
             data_clusters: r.get::<Vec<String>, _>("scopes"),
