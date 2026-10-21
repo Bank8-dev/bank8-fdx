@@ -16,7 +16,7 @@ pub struct Fdx8Config {
     pub database_url: String,
     pub sentin8_auth_issuer: String,
     pub sentin8_auth_jwks_url: String,
-    /// FDX's own external URL (e.g. https://bank8-fdx.ops.sys.sentin8.local) - used for
+    /// FDX's own external URL (e.g. https://bank8-fdx.ops.sys.local.sentin8.dev) - used for
     /// consent authorize URLs that FDX serves itself.
     pub fdx_base_url: String,
     pub ledger_url: String,
